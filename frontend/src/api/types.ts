@@ -130,15 +130,58 @@ export interface DiscoveredAsset {
   last_seen: string;
 }
 
+export type FindingSeverity =
+  | 'CRITICAL'
+  | 'HIGH'
+  | 'MEDIUM'
+  | 'LOW'
+  | 'INFORMATIONAL'
+  | 'INFO'
+  | 'NOTICE'
+  | 'WARNING';
+
+export type FindingConfidence = 'CONFIRMED' | 'HIGH' | 'MEDIUM' | 'LOW';
+
+export type ReviewStatus =
+  | 'OPEN'
+  | 'ACKNOWLEDGED'
+  | 'IN_REVIEW'
+  | 'RESOLVED'
+  | 'FALSE_POSITIVE';
+
+export interface FindingStatusHistoryItem {
+  status: ReviewStatus;
+  previous_status?: ReviewStatus;
+  timestamp: string;
+  note?: string | null;
+}
+
 export interface ScanFinding {
   id: string;
+  scope_id?: string | null;
   scan_run_id: string;
   asset_id?: string | null;
+  asset_host?: string | null;
   finding_type: 'DNS' | 'PORT' | 'HTTP' | 'TLS';
   title: string;
-  severity: 'INFO' | 'NOTICE' | 'WARNING';
+  description?: string | null;
+  severity: FindingSeverity;
+  confidence: FindingConfidence;
+  review_status: ReviewStatus;
+  remediation?: string | null;
   evidence: Record<string, any>;
+  status_history: FindingStatusHistoryItem[];
+  dedup_key?: string | null;
+  first_detected: string;
+  last_observed: string;
   created_at: string;
+}
+
+export interface FindingsCountSummary {
+  total: number;
+  by_severity: Record<string, number>;
+  by_status: Record<string, number>;
+  by_type: Record<string, number>;
 }
 
 export interface StatsOverview {
@@ -151,6 +194,8 @@ export interface StatsOverview {
   asset_types_distribution: Record<string, number>;
   top_open_ports: Array<{ port: number; service: string; count: number }>;
   findings_by_type: Record<string, number>;
+  findings_by_severity?: Record<string, number>;
+  findings_by_status?: Record<string, number>;
   total_changes?: number;
   changes_by_type?: Record<string, number>;
 }

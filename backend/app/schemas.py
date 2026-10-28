@@ -97,15 +97,29 @@ class AssetOut(BaseModel):
 # Finding Schemas
 class FindingOut(BaseModel):
     id: str
+    scope_id: Optional[str] = None
     scan_run_id: str
     asset_id: Optional[str] = None
+    asset_host: Optional[str] = None
     finding_type: str
     title: str
+    description: Optional[str] = None
     severity: str
+    confidence: str = "CONFIRMED"
+    review_status: str = "OPEN"
+    remediation: Optional[str] = None
     evidence: Dict[str, Any] = {}
+    status_history: List[Dict[str, Any]] = []
+    dedup_key: Optional[str] = None
+    first_detected: Optional[datetime] = None
+    last_observed: Optional[datetime] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+class FindingStatusUpdate(BaseModel):
+    review_status: str
+    note: Optional[str] = None
 
 # Stats / Overview Schemas
 class StatsOverview(BaseModel):
@@ -118,6 +132,8 @@ class StatsOverview(BaseModel):
     asset_types_distribution: Dict[str, int]
     top_open_ports: List[Dict[str, Any]]
     findings_by_type: Dict[str, int]
+    findings_by_severity: Dict[str, int] = {}
+    findings_by_status: Dict[str, int] = {}
     total_changes: int = 0
     changes_by_type: Dict[str, int] = {}
 

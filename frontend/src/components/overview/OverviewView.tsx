@@ -12,7 +12,8 @@ import {
   Lock,
   Layers,
   Sparkles,
-  History
+  History,
+  ShieldAlert
 } from 'lucide-react';
 import type { StatsOverview, ScanRun } from '../../api/types';
 import { Card } from '../ui/Card';
@@ -22,7 +23,7 @@ import { Button } from '../ui/Button';
 interface OverviewViewProps {
   stats: StatsOverview | null;
   recentScans: ScanRun[];
-  onNavigate: (tab: 'inventory' | 'discovery' | 'scopes' | 'changes') => void;
+  onNavigate: (tab: 'inventory' | 'discovery' | 'scopes' | 'changes' | 'findings') => void;
   onOpenNewScope: () => void;
   onOpenQuickScan: () => void;
   onToggleDemo: () => void;
@@ -327,53 +328,53 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
         </Card>
 
-        {/* Card 3: Discovery Findings Breakdown */}
+        {/* Card 3: Findings & Risk Classification */}
         <Card className="lg:col-span-1 space-y-4">
           <div className="flex items-center justify-between border-b border-navy-750 pb-3">
             <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4 text-cyan-400" />
-              <h3 className="text-sm font-semibold text-slate-200">Findings by Probe</h3>
+              <ShieldAlert className="w-4 h-4 text-cyan-400" />
+              <h3 className="text-sm font-semibold text-slate-200">Risk & Findings Posture</h3>
             </div>
-            <span className="text-xs text-slate-500 font-mono">Phase 1 Evidence</span>
+            <span className="text-xs text-slate-500 font-mono">Phase 3</span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 rounded-lg bg-navy-900 border border-navy-750">
-              <span className="text-xs text-slate-400">DNS Records</span>
-              <div className="text-xl font-bold font-mono text-slate-100 mt-1">
-                {stats?.findings_by_type?.DNS ?? 0}
+            <div className="p-3 rounded-lg bg-navy-900 border border-rose-500/30">
+              <span className="text-xs text-rose-400">Critical / High</span>
+              <div className="text-xl font-bold font-mono text-rose-300 mt-1">
+                {(stats?.findings_by_severity?.CRITICAL ?? 0) + (stats?.findings_by_severity?.HIGH ?? 0)}
               </div>
-              <span className="text-[10px] text-slate-500">A, AAAA, MX, NS, TXT</span>
+              <span className="text-[10px] text-slate-500">Requires triage</span>
+            </div>
+
+            <div className="p-3 rounded-lg bg-navy-900 border border-amber-500/30">
+              <span className="text-xs text-amber-400">Medium Risk</span>
+              <div className="text-xl font-bold font-mono text-amber-300 mt-1">
+                {stats?.findings_by_severity?.MEDIUM ?? 0}
+              </div>
+              <span className="text-[10px] text-slate-500">Review config</span>
+            </div>
+
+            <div className="p-3 rounded-lg bg-navy-900 border border-cyan-500/30">
+              <span className="text-xs text-cyan-400">Low Risk</span>
+              <div className="text-xl font-bold font-mono text-cyan-300 mt-1">
+                {stats?.findings_by_severity?.LOW ?? 0}
+              </div>
+              <span className="text-[10px] text-slate-500">Minor deviations</span>
             </div>
 
             <div className="p-3 rounded-lg bg-navy-900 border border-navy-750">
-              <span className="text-xs text-slate-400">Open Ports</span>
-              <div className="text-xl font-bold font-mono text-cyan-400 mt-1">
-                {stats?.findings_by_type?.PORT ?? 0}
+              <span className="text-xs text-slate-400">Informational</span>
+              <div className="text-xl font-bold font-mono text-slate-300 mt-1">
+                {stats?.findings_by_severity?.INFORMATIONAL ?? (stats?.findings_by_type?.PORT ?? 0)}
               </div>
-              <span className="text-[10px] text-slate-500">Opt-in allowlist</span>
-            </div>
-
-            <div className="p-3 rounded-lg bg-navy-900 border border-navy-750">
-              <span className="text-xs text-slate-400">HTTP Services</span>
-              <div className="text-xl font-bold font-mono text-violet-400 mt-1">
-                {stats?.findings_by_type?.HTTP ?? 0}
-              </div>
-              <span className="text-[10px] text-slate-500">Headers & metadata</span>
-            </div>
-
-            <div className="p-3 rounded-lg bg-navy-900 border border-navy-750">
-              <span className="text-xs text-slate-400">TLS Certificates</span>
-              <div className="text-xl font-bold font-mono text-emerald-400 mt-1">
-                {stats?.findings_by_type?.TLS ?? 0}
-              </div>
-              <span className="text-[10px] text-slate-500">Expiry & SANs</span>
+              <span className="text-[10px] text-slate-500">Normal telemetry</span>
             </div>
           </div>
 
           <div className="pt-2 border-t border-navy-750 flex items-center justify-between">
-            <Button variant="ghost" size="sm" onClick={() => onNavigate('discovery')} icon={<ArrowRight className="w-3.5 h-3.5" />}>
-              View Discovery Runs
+            <Button variant="ghost" size="sm" onClick={() => onNavigate('findings')} icon={<ArrowRight className="w-3.5 h-3.5" />}>
+              Open Findings & Risk Desk
             </Button>
           </div>
         </Card>

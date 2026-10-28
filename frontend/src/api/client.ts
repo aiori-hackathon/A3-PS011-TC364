@@ -8,7 +8,8 @@ import type {
   ScanFinding,
   StatsOverview,
   AssetSnapshot,
-  AssetChangeRecord
+  AssetChangeRecord,
+  FindingsCountSummary,
 } from './types';
 
 const API_BASE = '/api';
@@ -128,6 +129,40 @@ export const api = {
   getSnapshots: (scopeId?: string) =>
     request<AssetSnapshot[]>(scopeId ? `/snapshots?scope_id=${encodeURIComponent(scopeId)}` : '/snapshots'),
   getSnapshot: (id: string) => request<AssetSnapshot>(`/snapshots/${id}`),
+
+  // Phase 3: Findings & Risk Classification
+  getFindings: (params?: {
+    scope_id?: string;
+    asset_id?: string;
+    severity?: string;
+    review_status?: string;
+    finding_type?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.scope_id) searchParams.append('scope_id', params.scope_id);
+    if (params?.asset_id) searchParams.append('asset_id', params.asset_id);
+    if (params?.severity) searchParams.append('severity', params.severity);
+    if (params?.review_status) searchParams.append('review_status', params.review_status);
+    if (params?.finding_type) searchParams.append('finding_type', params.finding_type);
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    const query = searchParams.toString();
+    return request<ScanFinding[]>(query ? `/findings?${query}` : '/findings');
+  },
+  getFinding: (id: string) => request<ScanFinding>(`/findings/${id}`),
+  updateFindingStatus: (id: string, review_status: string, note?: string) =>
+    request<ScanFinding>(`/findings/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ review_status, note }),
+    }),
+  getFindingsCounts: (scopeId?: string) =>
+    request<FindingsCountSummary>(
+      scopeId ? `/findings/summary/counts?scope_id=${encodeURIComponent(scopeId)}` : '/findings/summary/counts'
+    ),
 
   // Stats & Demo
   getStatsOverview: () => request<StatsOverview>('/stats/overview'),

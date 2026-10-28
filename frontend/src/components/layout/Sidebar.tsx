@@ -7,10 +7,11 @@ import {
   Radio,
   FlaskConical,
   ExternalLink,
-  History
+  History,
+  ShieldAlert
 } from 'lucide-react';
 
-export type NavTab = 'overview' | 'inventory' | 'changes' | 'discovery' | 'scopes';
+export type NavTab = 'overview' | 'inventory' | 'changes' | 'findings' | 'discovery' | 'scopes';
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -47,6 +48,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Change History',
       icon: History,
       desc: 'Asset diffs & baseline changes',
+    },
+    {
+      id: 'findings' as NavTab,
+      label: 'Findings & Risk',
+      icon: ShieldAlert,
+      desc: 'Explainable risks & status review',
     },
     {
       id: 'discovery' as NavTab,

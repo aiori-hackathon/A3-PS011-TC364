@@ -8,6 +8,7 @@ from sqlalchemy import desc
 from ..database import get_db
 from ..models import Scope, ScanRun, DiscoveredAsset, ScanFinding, AssetChangeRecord
 from ..discovery.change_detector import create_snapshot_for_scan, detect_and_record_changes
+from ..discovery.risk_classifier import evaluate_and_persist_findings
 from ..schemas import StatsOverview, ScanOut
 
 router = APIRouter(prefix="", tags=["Stats & Demo"])
@@ -62,6 +63,19 @@ def get_stats_overview(db: Session = Depends(get_db)):
     findings = db.query(ScanFinding.finding_type).all()
     finding_counter = Counter([f[0] for f in findings])
 
+    # Phase 3: Findings by severity and status
+    all_findings = db.query(ScanFinding.severity, ScanFinding.review_status).all()
+    sev_counter = Counter()
+    status_counter = Counter()
+    for s, st in all_findings:
+        sev = (s or "INFORMATIONAL").upper()
+        if sev in ("INFO", "NOTICE"):
+            sev = "INFORMATIONAL"
+        elif sev == "WARNING":
+            sev = "MEDIUM"
+        sev_counter[sev] += 1
+        status_counter[(st or "OPEN").upper()] += 1
+
     # Phase 2: Changes summary
     total_changes = db.query(AssetChangeRecord).count()
     change_types = db.query(AssetChangeRecord.change_type).all()
@@ -77,6 +91,8 @@ def get_stats_overview(db: Session = Depends(get_db)):
         asset_types_distribution=dict(type_counter),
         top_open_ports=top_ports,
         findings_by_type=dict(finding_counter),
+        findings_by_severity=dict(sev_counter),
+        findings_by_status=dict(status_counter),
         total_changes=total_changes,
         changes_by_type=dict(change_counter)
     )
@@ -299,26 +315,8 @@ def seed_demo_mode(db: Session = Depends(get_db)):
         db.add(asset)
         db.flush()
 
-        # Add findings
-        if item["ports"]:
-            for op in item["ports"]:
-                db.add(ScanFinding(
-                    scan_run_id=demo_scan.id,
-                    asset_id=asset.id,
-                    finding_type="PORT",
-                    title=f"[DEMO] Port {op['port']} ({op.get('service')}) Open",
-                    severity="NOTICE",
-                    evidence=op
-                ))
-        if item["tls"].get("has_tls"):
-            db.add(ScanFinding(
-                scan_run_id=demo_scan.id,
-                asset_id=asset.id,
-                finding_type="TLS",
-                title=f"[DEMO] TLS Certificate for {item['host']}",
-                severity="INFO",
-                evidence=item["tls"]
-            ))
+        # Phase 3: Evaluate explainable risk classification and persist deduplicated findings
+        evaluate_and_persist_findings(db, demo_scan.id, demo_scope.id, asset)
 
     db.commit()
     

@@ -17,6 +17,7 @@ import { InventoryView } from './components/inventory/InventoryView';
 import { DiscoveryView } from './components/discovery/DiscoveryView';
 import { ScopeView } from './components/scope/ScopeView';
 import { ChangesView } from './components/changes/ChangesView';
+import { FindingsView } from './components/findings/FindingsView';
 import { NewScanModal } from './components/discovery/NewScanModal';
 import { ScopeModal } from './components/scope/ScopeModal';
 
@@ -183,6 +184,10 @@ export const App: React.FC = () => {
       title: 'Asset Change History & Baseline Monitoring',
       subtitle: 'Phase 2 detected additions, removals, service state shifts, and TLS certificate updates',
     },
+    findings: {
+      title: 'Findings & Explainable Risk Classification',
+      subtitle: 'Deterministic risk analysis, exposed service assessments, and review status triage',
+    },
     discovery: {
       title: 'Discovery Runs & Engine Monitor',
       subtitle: 'Real-time progress, live execution console, and bounded probe logs',
@@ -252,6 +257,20 @@ export const App: React.FC = () => {
                 const found = assets.find((a) => a.host_or_ip === host);
                 if (found) {
                   handleInspectAsset(found);
+                }
+              }}
+            />
+          )}
+
+          {currentTab === 'findings' && (
+            <FindingsView
+              scopes={scopes}
+              onInspectAsset={(host) => {
+                const found = assets.find((a) => a.host_or_ip === host);
+                if (found) {
+                  handleInspectAsset(found);
+                } else {
+                  setCurrentTab('inventory');
                 }
               }}
             />

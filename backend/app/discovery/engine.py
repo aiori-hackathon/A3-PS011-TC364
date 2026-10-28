@@ -13,6 +13,7 @@ from .port_scanner import scan_allowed_ports
 from .http_probe import probe_http_service
 from .tls_inspector import inspect_tls_certificate
 from .change_detector import create_snapshot_for_scan, detect_and_record_changes
+from .risk_classifier import evaluate_and_persist_findings
 
 # Thread-safe cancellation set
 CANCELLED_SCANS: Set[str] = set()
@@ -254,59 +255,14 @@ async def execute_discovery_run(scan_id: str):
 
             db.flush() # ensure asset_obj has an id
 
-            # 6. Record Scan Findings
-            # DNS Finding
-            if dns_results.get("A") or dns_results.get("AAAA") or dns_results.get("MX") or dns_results.get("CNAME"):
-                finding_dns = ScanFinding(
-                    scan_run_id=scan_id,
-                    asset_id=asset_obj.id,
-                    finding_type="DNS",
-                    title=f"DNS Records for {sanitized_target}",
-                    severity="INFO",
-                    evidence=dns_results
-                )
-                db.add(finding_dns)
-                findings_count += 1
-
-            # Port Findings
-            for op in open_ports:
-                finding_port = ScanFinding(
-                    scan_run_id=scan_id,
-                    asset_id=asset_obj.id,
-                    finding_type="PORT",
-                    title=f"TCP Port {op['port']} ({op.get('service')}) Open",
-                    severity="NOTICE",
-                    evidence=op
-                )
-                db.add(finding_port)
-                findings_count += 1
-
-            # HTTP Finding
-            if http_summary.get("reachable"):
-                finding_http = ScanFinding(
-                    scan_run_id=scan_id,
-                    asset_id=asset_obj.id,
-                    finding_type="HTTP",
-                    title=f"Web Service Reachable ({http_summary.get('status_code')}) on {sanitized_target}",
-                    severity="INFO",
-                    evidence=http_summary
-                )
-                db.add(finding_http)
-                findings_count += 1
-
-            # TLS Finding
-            if tls_summary.get("has_tls"):
-                severity = "WARNING" if tls_summary.get("is_expired") or (tls_summary.get("days_remaining") is not None and tls_summary.get("days_remaining") < 15) else "INFO"
-                finding_tls = ScanFinding(
-                    scan_run_id=scan_id,
-                    asset_id=asset_obj.id,
-                    finding_type="TLS",
-                    title=f"TLS Certificate ({tls_summary.get('subject_cn')})",
-                    severity=severity,
-                    evidence=tls_summary
-                )
-                db.add(finding_tls)
-                findings_count += 1
+            # 6. Phase 3: Evaluate explainable risk classification and persist deduplicated findings
+            asset_findings = evaluate_and_persist_findings(
+                db=db,
+                scan_run_id=scan_id,
+                scope_id=scope.id,
+                asset=asset_obj
+            )
+            findings_count += len(asset_findings)
 
             targets_scanned += 1
             scan.targets_scanned = targets_scanned

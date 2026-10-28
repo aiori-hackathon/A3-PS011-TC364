@@ -27,6 +27,7 @@ class Scope(Base):
     assets = relationship("DiscoveredAsset", back_populates="scope", cascade="all, delete-orphan")
     snapshots = relationship("AssetSnapshot", back_populates="scope", cascade="all, delete-orphan")
     changes = relationship("AssetChangeRecord", back_populates="scope", cascade="all, delete-orphan")
+    findings = relationship("ScanFinding", back_populates="scope", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("idx_scopes_name", "name"),
@@ -97,21 +98,36 @@ class ScanFinding(Base):
     __tablename__ = "scan_findings"
 
     id = Column(String(36), primary_key=True, default=generate_uuid)
+    scope_id = Column(String(36), ForeignKey("scopes.id", ondelete="CASCADE"), nullable=True, index=True)
     scan_run_id = Column(String(36), ForeignKey("scan_runs.id", ondelete="CASCADE"), nullable=False, index=True)
     asset_id = Column(String(36), ForeignKey("discovered_assets.id", ondelete="CASCADE"), nullable=True, index=True)
     
-    finding_type = Column(String(50), nullable=False) # DNS, PORT, HTTP, TLS
+    finding_type = Column(String(50), nullable=False) # DNS, PORT, HTTP, TLS, EXPOSURE, CONFIGURATION
     title = Column(String(255), nullable=False)
-    severity = Column(String(20), default="INFO", nullable=False) # INFO, NOTICE, WARNING
+    description = Column(Text, nullable=True)
+    severity = Column(String(20), default="INFORMATIONAL", nullable=False) # INFORMATIONAL, LOW, MEDIUM, HIGH, CRITICAL
+    confidence = Column(String(20), default="CONFIRMED", nullable=False) # CONFIRMED, HIGH, MEDIUM, LOW
+    review_status = Column(String(20), default="OPEN", nullable=False) # OPEN, ACKNOWLEDGED, IN_REVIEW, RESOLVED, FALSE_POSITIVE
+    remediation = Column(Text, nullable=True)
     evidence = Column(JSON, default=dict, nullable=False)
+    status_history = Column(JSON, default=list, nullable=False)
+    dedup_key = Column(String(255), nullable=True, index=True)
+    
+    first_detected = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_observed = Column(DateTime, default=datetime.utcnow, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
+    scope = relationship("Scope", back_populates="findings")
     scan_run = relationship("ScanRun", back_populates="findings")
     asset = relationship("DiscoveredAsset", back_populates="findings")
 
     __table_args__ = (
         Index("idx_findings_scan_type", "scan_run_id", "finding_type"),
+        Index("idx_findings_severity", "severity"),
+        Index("idx_findings_status", "review_status"),
+        Index("idx_findings_scope", "scope_id"),
+        Index("idx_findings_dedup", "dedup_key"),
     )
 
 
