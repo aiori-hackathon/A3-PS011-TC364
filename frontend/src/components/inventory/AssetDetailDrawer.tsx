@@ -3,18 +3,15 @@ import {
   Server,
   Globe,
   Lock,
-  FileCode,
   Layers,
   Clock,
   ShieldCheck,
-  CheckCircle2,
-  AlertCircle,
-  ExternalLink,
   Copy,
   Check,
   History,
   ArrowRight,
-  AlertTriangle
+  AlertTriangle,
+  ShieldAlert
 } from 'lucide-react';
 import type { DiscoveredAsset, ScanFinding, AssetChangeRecord } from '../../api/types';
 import { api } from '../../api/client';
@@ -34,7 +31,7 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
   isOpen,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'dns' | 'http' | 'tls' | 'evidence' | 'changes'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'dns' | 'http' | 'tls' | 'findings' | 'changes'>('overview');
   const [assetChanges, setAssetChanges] = useState<AssetChangeRecord[]>([]);
   const [loadingChanges, setLoadingChanges] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -71,8 +68,8 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
     { id: 'dns' as const, label: 'DNS Records', icon: Globe },
     { id: 'http' as const, label: 'HTTP / Web', icon: Server },
     { id: 'tls' as const, label: 'TLS Certificate', icon: Lock },
+    { id: 'findings' as const, label: `Findings (${findings.length})`, icon: ShieldAlert },
     { id: 'changes' as const, label: `Changes (${assetChanges.length})`, icon: History },
-    { id: 'evidence' as const, label: 'Findings & Raw Evidence', icon: FileCode },
   ];
 
   const dns = asset.dns_records || {};
@@ -168,6 +165,61 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
               <span className="font-mono text-cyan-300">
                 {new Date(asset.last_seen).toLocaleString()}
               </span>
+            </div>
+          </div>
+
+          {/* Security Findings Glance */}
+          <div className="p-4 rounded-xl bg-navy-850 border border-navy-750 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-300 uppercase font-mono tracking-wider flex items-center gap-1.5">
+                <ShieldAlert className="w-3.5 h-3.5 text-cyan-400" />
+                Asset Security Risk Posture
+              </span>
+              <span className="text-xs font-mono text-cyan-400 font-bold">
+                {findings.length} findings
+              </span>
+            </div>
+
+            {findings.length === 0 ? (
+              <div className="text-xs text-slate-500 italic py-1">
+                Zero security findings recorded for this asset.
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">
+                <div className="p-2 rounded bg-navy-950 border border-rose-500/30 text-rose-300">
+                  <div className="text-[10px] text-rose-400 uppercase">Critical/High</div>
+                  <div className="text-lg font-bold mt-0.5">
+                    {findings.filter(f => f.severity === 'CRITICAL' || f.severity === 'HIGH').length}
+                  </div>
+                </div>
+                <div className="p-2 rounded bg-navy-950 border border-amber-500/30 text-amber-300">
+                  <div className="text-[10px] text-amber-400 uppercase">Medium</div>
+                  <div className="text-lg font-bold mt-0.5">
+                    {findings.filter(f => f.severity === 'MEDIUM').length}
+                  </div>
+                </div>
+                <div className="p-2 rounded bg-navy-950 border border-cyan-500/30 text-cyan-300">
+                  <div className="text-[10px] text-cyan-400 uppercase">Low</div>
+                  <div className="text-lg font-bold mt-0.5">
+                    {findings.filter(f => f.severity === 'LOW').length}
+                  </div>
+                </div>
+                <div className="p-2 rounded bg-navy-950 border border-navy-750 text-slate-300">
+                  <div className="text-[10px] text-slate-500 uppercase">Info</div>
+                  <div className="text-lg font-bold mt-0.5">
+                    {findings.filter(f => f.severity === 'INFORMATIONAL' || f.severity === 'INFO' || f.severity === 'NOTICE').length}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="pt-1 flex justify-end">
+              <button
+                onClick={() => setActiveTab('findings')}
+                className="text-xs text-cyan-400 hover:text-cyan-300 font-mono flex items-center gap-1"
+              >
+                Inspect All Findings <ArrowRight className="w-3 h-3" />
+              </button>
             </div>
           </div>
 
@@ -481,55 +533,99 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
         </div>
       )}
 
-      {/* Tab 5: Findings & Raw Evidence */}
-      {activeTab === 'evidence' && (
+      {/* Tab 5: Findings & Risk Analysis */}
+      {activeTab === 'findings' && (
         <div className="space-y-4">
-          <div className="space-y-3">
-            <h4 className="text-xs font-semibold text-slate-300 uppercase font-mono tracking-wider">
-              Discovered Findings & Audit Evidence ({findings.length})
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-semibold text-slate-300 uppercase font-mono tracking-wider flex items-center gap-2">
+              <ShieldAlert className="w-3.5 h-3.5 text-cyan-400" />
+              Asset Security Findings & Risk Analysis ({findings.length})
             </h4>
+            <span className="text-[11px] font-mono text-slate-500">
+              Deterministic Rules
+            </span>
+          </div>
 
-            {findings.length === 0 ? (
-              <div className="p-4 rounded-xl bg-navy-850 border border-navy-750 text-xs text-slate-500 italic text-center">
-                No individual findings recorded.
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {findings.map((f) => (
-                  <div key={f.id} className="p-3 rounded-lg bg-navy-850 border border-navy-750 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant={
-                            f.finding_type === 'PORT'
-                              ? 'cyan'
-                              : f.finding_type === 'TLS'
-                              ? 'emerald'
-                              : f.finding_type === 'HTTP'
-                              ? 'violet'
-                              : 'amber'
-                          }
-                          size="sm"
-                        >
-                          {f.finding_type}
-                        </Badge>
-                        <span className="text-xs font-semibold text-slate-200">
-                          {f.title}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        {new Date(f.created_at).toLocaleTimeString()}
+          {findings.length === 0 ? (
+            <div className="p-8 rounded-xl bg-navy-850 border border-navy-750 text-center space-y-2">
+              <ShieldCheck className="w-8 h-8 mx-auto text-emerald-400 opacity-60" />
+              <div className="text-xs text-slate-300 font-medium">No Security Findings for this Asset</div>
+              <p className="text-[11px] text-slate-500">
+                All observed ports, TLS certificates, and DNS records comply with standard baselines.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {findings.map((f) => (
+                <div key={f.id} className="p-4 rounded-xl bg-navy-850 border border-navy-750 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant={
+                          f.severity === 'CRITICAL'
+                            ? 'rose'
+                            : f.severity === 'HIGH'
+                            ? 'orange'
+                            : f.severity === 'MEDIUM'
+                            ? 'amber'
+                            : f.severity === 'LOW'
+                            ? 'cyan'
+                            : 'slate'
+                        }
+                        size="sm"
+                        pulse={f.severity === 'CRITICAL'}
+                      >
+                        {f.severity || 'INFO'}
+                      </Badge>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-navy-950 text-slate-300 border border-navy-800">
+                        {f.finding_type}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-navy-950 text-cyan-400 border border-navy-800">
+                        {f.confidence || 'CONFIRMED'}
                       </span>
                     </div>
-
-                    <pre className="p-2.5 rounded bg-navy-950 text-[10px] font-mono text-slate-300 overflow-x-auto border border-navy-750 max-h-40">
-                      {JSON.stringify(f.evidence, null, 2)}
-                    </pre>
+                    <span className="text-[10px] font-mono text-slate-400 px-2 py-0.5 rounded bg-navy-950 border border-navy-800">
+                      {f.review_status || 'OPEN'}
+                    </span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+
+                  <div>
+                    <h5 className="text-xs font-bold text-slate-100">{f.title}</h5>
+                    {f.description && (
+                      <p className="text-xs text-slate-300 mt-1 leading-relaxed bg-navy-950/60 p-2.5 rounded border border-navy-800">
+                        {f.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {f.remediation && (
+                    <div className="text-xs text-emerald-300 bg-emerald-950/20 p-2.5 rounded border border-emerald-500/30">
+                      <span className="text-emerald-400 font-bold block text-[10px] uppercase font-mono mb-0.5">
+                        Remediation Guidance:
+                      </span>
+                      {f.remediation}
+                    </div>
+                  )}
+
+                  {f.evidence && (
+                    <div>
+                      <span className="text-[10px] font-mono uppercase text-slate-400 block mb-1">
+                        Technical Evidence:
+                      </span>
+                      <pre className="p-2.5 rounded bg-navy-950 text-[10px] font-mono text-cyan-300/90 overflow-x-auto border border-navy-800 max-h-36">
+                        {JSON.stringify(f.evidence, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1 border-t border-navy-800">
+                    <span>First Seen: {f.first_detected ? new Date(f.first_detected).toLocaleDateString() : 'Initial'}</span>
+                    <span>Last Observed: {f.last_observed ? new Date(f.last_observed).toLocaleString() : new Date(f.created_at).toLocaleString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

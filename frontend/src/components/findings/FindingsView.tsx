@@ -44,6 +44,9 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ scopes, onInspectAss
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'severity_desc' | 'severity_asc' | 'date_desc' | 'date_asc' | 'title_asc'>('severity_desc');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
 
   // Selected finding for detailed review modal
   const [selectedFinding, setSelectedFinding] = useState<ScanFinding | null>(null);
@@ -119,6 +122,41 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ scopes, onInspectAss
   // Scope lookup map
   const scopeMap = new Map<string, string>();
   scopes.forEach((s) => scopeMap.set(s.id, s.name));
+
+  // Severity rank mapping for sorting
+  const severityRank: Record<string, number> = {
+    CRITICAL: 5,
+    HIGH: 4,
+    MEDIUM: 3,
+    LOW: 2,
+    INFORMATIONAL: 1,
+    INFO: 1,
+    NOTICE: 1,
+  };
+
+  const sortedFindings = [...findings].sort((a, b) => {
+    if (sortBy === 'severity_desc') {
+      const diff = (severityRank[b.severity] || 0) - (severityRank[a.severity] || 0);
+      if (diff !== 0) return diff;
+      return new Date(b.last_observed).getTime() - new Date(a.last_observed).getTime();
+    }
+    if (sortBy === 'severity_asc') {
+      const diff = (severityRank[a.severity] || 0) - (severityRank[b.severity] || 0);
+      if (diff !== 0) return diff;
+      return new Date(b.last_observed).getTime() - new Date(a.last_observed).getTime();
+    }
+    if (sortBy === 'date_asc') {
+      return new Date(a.last_observed).getTime() - new Date(b.last_observed).getTime();
+    }
+    if (sortBy === 'title_asc') {
+      return a.title.localeCompare(b.title);
+    }
+    // Default: date_desc
+    return new Date(b.last_observed).getTime() - new Date(a.last_observed).getTime();
+  });
+
+  const totalPages = Math.ceil(sortedFindings.length / pageSize) || 1;
+  const paginatedFindings = sortedFindings.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Severity count helpers
   const countCritical = findings.filter((f) => f.severity === 'CRITICAL').length;
@@ -309,7 +347,10 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ scopes, onInspectAss
             {/* Scope Filter */}
             <select
               value={selectedScope}
-              onChange={(e) => setSelectedScope(e.target.value)}
+              onChange={(e) => {
+                setSelectedScope(e.target.value);
+                setCurrentPage(1);
+              }}
               className="bg-navy-950 border border-navy-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
             >
               <option value="all">All Scopes</option>
@@ -323,7 +364,10 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ scopes, onInspectAss
             {/* Severity Filter */}
             <select
               value={selectedSeverity}
-              onChange={(e) => setSelectedSeverity(e.target.value)}
+              onChange={(e) => {
+                setSelectedSeverity(e.target.value);
+                setCurrentPage(1);
+              }}
               className="bg-navy-950 border border-navy-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
             >
               <option value="all">All Severities</option>
@@ -337,7 +381,10 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ scopes, onInspectAss
             {/* Review Status Filter */}
             <select
               value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
+              onChange={(e) => {
+                setSelectedStatus(e.target.value);
+                setCurrentPage(1);
+              }}
               className="bg-navy-950 border border-navy-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
             >
               <option value="all">All Review Statuses</option>
@@ -351,7 +398,10 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ scopes, onInspectAss
             {/* Finding Type Filter */}
             <select
               value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
+              onChange={(e) => {
+                setSelectedType(e.target.value);
+                setCurrentPage(1);
+              }}
               className="bg-navy-950 border border-navy-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
             >
               <option value="all">All Finding Types</option>
@@ -360,6 +410,42 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ scopes, onInspectAss
               <option value="DNS">DNS Configuration</option>
               <option value="HTTP">HTTP Posture</option>
             </select>
+
+            {/* Sort Dropdown */}
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value as any);
+                setCurrentPage(1);
+              }}
+              className="bg-navy-950 border border-navy-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
+            >
+              <option value="severity_desc">Sort: Highest Severity</option>
+              <option value="severity_asc">Sort: Lowest Severity</option>
+              <option value="date_desc">Sort: Newest First</option>
+              <option value="date_asc">Sort: Oldest First</option>
+              <option value="title_asc">Sort: Title (A-Z)</option>
+            </select>
+
+            {/* Reset Button */}
+            {(searchTerm || selectedScope !== 'all' || selectedSeverity !== 'all' || selectedStatus !== 'all' || selectedType !== 'all' || sortBy !== 'severity_desc') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedScope('all');
+                  setSelectedSeverity('all');
+                  setSelectedStatus('all');
+                  setSelectedType('all');
+                  setSortBy('severity_desc');
+                  setCurrentPage(1);
+                }}
+                className="text-xs font-mono text-slate-400 hover:text-slate-200"
+              >
+                Reset
+              </Button>
+            )}
 
             {/* Refresh Button */}
             <Button
@@ -373,6 +459,17 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ scopes, onInspectAss
               Refresh
             </Button>
           </div>
+        </div>
+
+        {/* Findings Count Bar */}
+        <div className="flex items-center justify-between text-xs text-slate-400 border-t border-navy-750/70 pt-2.5 mt-3">
+          <span>
+            Showing <span className="font-mono text-cyan-400 font-bold">{sortedFindings.length}</span> of {findings.length} findings
+            {sortedFindings.length !== findings.length && ' (filtered)'}
+          </span>
+          <span className="font-mono text-[11px] text-slate-500">
+            Phase 4 Risk Triage & Review
+          </span>
         </div>
       </Card>
 
@@ -416,7 +513,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ scopes, onInspectAss
                 </tr>
               </thead>
               <tbody className="divide-y divide-navy-800 font-mono text-xs">
-                {findings.map((f) => (
+                {paginatedFindings.map((f) => (
                   <tr
                     key={f.id}
                     onClick={() => handleOpenDetail(f)}
@@ -500,6 +597,54 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ scopes, onInspectAss
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Footer */}
+        {sortedFindings.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-navy-750 bg-navy-950/40 text-xs font-mono gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">Rows per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-navy-950 border border-navy-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-cyan-500"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              <span className="text-slate-500">
+                Showing {Math.min((currentPage - 1) * pageSize + 1, sortedFindings.length)} - {Math.min(currentPage * pageSize, sortedFindings.length)} of {sortedFindings.length}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="h-7 px-2.5 text-xs font-mono"
+              >
+                Prev
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="h-7 px-2.5 text-xs font-mono"
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </Card>

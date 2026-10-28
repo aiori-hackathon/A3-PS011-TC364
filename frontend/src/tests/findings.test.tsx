@@ -117,9 +117,8 @@ describe('FindingsView Component', () => {
       expect(screen.getByText('Exposed Database Service: MySQL (3306)')).toBeDefined();
     });
 
-    // Click the Review button for MySQL finding
-    const reviewButtons = screen.getAllByRole('button', { name: /review/i });
-    fireEvent.click(reviewButtons[0]);
+    // Click the MySQL finding to open detail modal
+    fireEvent.click(screen.getByText('Exposed Database Service: MySQL (3306)'));
 
     // Check modal displays explainable rationale
     await waitFor(() => {

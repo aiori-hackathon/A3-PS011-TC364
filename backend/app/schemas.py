@@ -136,6 +136,8 @@ class StatsOverview(BaseModel):
     findings_by_status: Dict[str, int] = {}
     total_changes: int = 0
     changes_by_type: Dict[str, int] = {}
+    discovery_timeline: List[Dict[str, Any]] = []
+    changes_timeline: List[Dict[str, Any]] = []
 
 # Phase 2 Snapshot & Change Schemas
 class SnapshotOut(BaseModel):

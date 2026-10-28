@@ -81,6 +81,42 @@ def get_stats_overview(db: Session = Depends(get_db)):
     change_types = db.query(AssetChangeRecord.change_type).all()
     change_counter = Counter([c[0] for c in change_types])
 
+    # Phase 4: Discovery activity timeline (recent 15 scans)
+    recent_scans = db.query(ScanRun).order_by(desc(ScanRun.started_at)).limit(15).all()
+    all_scopes = {s.id: s.name for s in db.query(Scope).all()}
+    discovery_timeline = [
+        {
+            "id": s.id,
+            "scope_name": all_scopes.get(s.scope_id, "Unknown Scope"),
+            "status": s.status,
+            "targets_scanned": s.targets_scanned,
+            "assets_discovered": s.assets_discovered_count,
+            "findings_count": s.findings_count,
+            "started_at": s.started_at.isoformat() if s.started_at else None
+        }
+        for s in reversed(recent_scans)
+    ]
+
+    # Phase 4: Asset changes over time (grouped chronologically by date)
+    recent_changes = db.query(AssetChangeRecord).order_by(AssetChangeRecord.created_at.asc()).all()
+    date_grouped_changes: Dict[str, Dict[str, int]] = {}
+    for c in recent_changes:
+        d_str = c.created_at.strftime("%Y-%m-%d") if c.created_at else "Unknown"
+        if d_str not in date_grouped_changes:
+            date_grouped_changes[d_str] = {"total": 0, "added": 0, "removed": 0, "modified": 0}
+        date_grouped_changes[d_str]["total"] += 1
+        if c.change_type == "ASSET_ADDED":
+            date_grouped_changes[d_str]["added"] += 1
+        elif c.change_type == "ASSET_REMOVED":
+            date_grouped_changes[d_str]["removed"] += 1
+        else:
+            date_grouped_changes[d_str]["modified"] += 1
+
+    changes_timeline = [
+        {"date": d_str, **counts}
+        for d_str, counts in sorted(date_grouped_changes.items())
+    ]
+
     return StatsOverview(
         total_scopes=total_scopes,
         total_assets=total_assets,
@@ -94,7 +130,9 @@ def get_stats_overview(db: Session = Depends(get_db)):
         findings_by_severity=dict(sev_counter),
         findings_by_status=dict(status_counter),
         total_changes=total_changes,
-        changes_by_type=dict(change_counter)
+        changes_by_type=dict(change_counter),
+        discovery_timeline=discovery_timeline,
+        changes_timeline=changes_timeline
     )
 
 @router.post("/demo/seed")

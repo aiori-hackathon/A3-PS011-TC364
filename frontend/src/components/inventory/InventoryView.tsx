@@ -46,6 +46,9 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedPort, setSelectedPort] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'seen_desc' | 'seen_asc' | 'host_asc' | 'host_desc' | 'ports_desc'>('seen_desc');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
 
   // Collect all unique ports present in assets for the port filter
   const allDetectedPorts = Array.from(
@@ -83,6 +86,18 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
     }
     return true;
   });
+
+  // Client-side sorting
+  const sortedAssets = [...filteredAssets].sort((a, b) => {
+    if (sortBy === 'host_asc') return a.host_or_ip.localeCompare(b.host_or_ip);
+    if (sortBy === 'host_desc') return b.host_or_ip.localeCompare(a.host_or_ip);
+    if (sortBy === 'seen_asc') return new Date(a.last_seen).getTime() - new Date(b.last_seen).getTime();
+    if (sortBy === 'ports_desc') return (b.open_ports?.length || 0) - (a.open_ports?.length || 0);
+    return new Date(b.last_seen).getTime() - new Date(a.last_seen).getTime();
+  });
+
+  const totalPages = Math.ceil(sortedAssets.length / pageSize) || 1;
+  const paginatedAssets = sortedAssets.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
     <div className="space-y-6">
@@ -157,7 +172,23 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               </select>
             )}
 
-            {(searchTerm || selectedScope !== 'all' || selectedStatus !== 'all' || selectedType !== 'all' || selectedPort !== 'all') && (
+            {/* Sort Dropdown */}
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value as any);
+                setCurrentPage(1);
+              }}
+              className="bg-navy-900 border border-navy-700 text-slate-300 text-xs rounded-lg px-2.5 py-2 focus:outline-none focus:border-cyan-500 font-mono"
+            >
+              <option value="seen_desc">Sort: Newest First</option>
+              <option value="seen_asc">Sort: Oldest First</option>
+              <option value="host_asc">Sort: Host (A-Z)</option>
+              <option value="host_desc">Sort: Host (Z-A)</option>
+              <option value="ports_desc">Sort: Most Ports</option>
+            </select>
+
+            {(searchTerm || selectedScope !== 'all' || selectedStatus !== 'all' || selectedType !== 'all' || selectedPort !== 'all' || sortBy !== 'seen_desc') && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -167,6 +198,8 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                   setSelectedStatus('all');
                   setSelectedType('all');
                   setSelectedPort('all');
+                  setSortBy('seen_desc');
+                  setCurrentPage(1);
                 }}
               >
                 Reset
@@ -178,10 +211,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
         {/* Inventory Counts bar */}
         <div className="flex items-center justify-between text-xs text-slate-400 border-t border-navy-750/70 pt-2.5">
           <span>
-            Showing <span className="font-mono text-cyan-400 font-bold">{filteredAssets.length}</span> of {assets.length} assets
+            Showing <span className="font-mono text-cyan-400 font-bold">{sortedAssets.length}</span> of {assets.length} assets
+            {sortedAssets.length !== assets.length && ' (filtered)'}
           </span>
           <span className="font-mono text-[11px] text-slate-500">
-            Phase 1 Initial Inventory Store
+            Phase 4 Advanced Inventory Explorer
           </span>
         </div>
       </Card>
@@ -214,7 +248,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-navy-750">
-                {filteredAssets.map((asset) => {
+                {paginatedAssets.map((asset) => {
                   const tls = asset.tls_summary || {};
                   const http = asset.http_summary || {};
                   const openPorts = asset.open_ports || [];
@@ -351,6 +385,54 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {sortedAssets.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-t border-navy-750 text-xs font-mono text-slate-400 bg-navy-900/60">
+            <div className="flex items-center gap-2">
+              <span>Rows per page:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="bg-navy-950 border border-navy-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-cyan-500"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              <span className="text-slate-500">
+                Showing {Math.min((currentPage - 1) * pageSize + 1, sortedAssets.length)} - {Math.min(currentPage * pageSize, sortedAssets.length)} of {sortedAssets.length}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="h-7 px-2.5 text-xs font-mono"
+              >
+                Prev
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="h-7 px-2.5 text-xs font-mono"
+              >
+                Next
+              </Button>
+            </div>
           </div>
         )}
       </Card>

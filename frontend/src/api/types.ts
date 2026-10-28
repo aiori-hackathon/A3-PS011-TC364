@@ -184,6 +184,24 @@ export interface FindingsCountSummary {
   by_type: Record<string, number>;
 }
 
+export interface DiscoveryTimelineItem {
+  id: string;
+  scope_name: string;
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
+  targets_scanned: number;
+  assets_discovered: number;
+  findings_count: number;
+  started_at: string | null;
+}
+
+export interface ChangesTimelineItem {
+  date: string;
+  total: number;
+  added: number;
+  removed: number;
+  modified: number;
+}
+
 export interface StatsOverview {
   total_scopes: number;
   total_assets: number;
@@ -198,6 +216,8 @@ export interface StatsOverview {
   findings_by_status?: Record<string, number>;
   total_changes?: number;
   changes_by_type?: Record<string, number>;
+  discovery_timeline?: DiscoveryTimelineItem[];
+  changes_timeline?: ChangesTimelineItem[];
 }
 
 export type ChangeType =

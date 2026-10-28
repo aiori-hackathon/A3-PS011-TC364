@@ -19,6 +19,7 @@ import type { StatsOverview, ScanRun } from '../../api/types';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { SecurityAnalytics } from '../analytics/SecurityAnalytics';
 
 interface OverviewViewProps {
   stats: StatsOverview | null;
@@ -235,6 +236,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
         </Card>
       </div>
+
+      {/* Phase 4 Advanced Security Analytics Deck */}
+      <SecurityAnalytics stats={stats} onNavigateTab={onNavigate} />
 
       {/* Visual Data Breakdown derived strictly from stored database */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

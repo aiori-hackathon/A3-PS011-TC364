@@ -9,18 +9,12 @@ import {
   Filter,
   AlertTriangle,
   ArrowRight,
-  ShieldCheck,
   CheckCircle2,
-  FileCode,
-  Layers,
-  Clock,
-  Eye,
-  Server
+  Layers
 } from 'lucide-react';
 import { api } from '../../api/client';
 import type { AssetChangeRecord, AssetSnapshot, Scope, ChangeType } from '../../api/types';
 import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 
@@ -40,6 +34,9 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ scopes, onInspectAsset
   const [selectedType, setSelectedType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterInconclusiveOnly, setFilterInconclusiveOnly] = useState<boolean>(false);
+  const [sortBy, setSortBy] = useState<'date_desc' | 'date_asc' | 'asset_asc' | 'asset_desc' | 'type_asc'>('date_desc');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
 
   // Detail Modal
   const [selectedChange, setSelectedChange] = useState<AssetChangeRecord | null>(null);
@@ -88,6 +85,18 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ scopes, onInspectAsset
     }
     return true;
   });
+
+  // Client-side sorting for changes
+  const sortedChanges = [...filteredChanges].sort((a, b) => {
+    if (sortBy === 'date_asc') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    if (sortBy === 'asset_asc') return a.asset_identifier.localeCompare(b.asset_identifier);
+    if (sortBy === 'asset_desc') return b.asset_identifier.localeCompare(a.asset_identifier);
+    if (sortBy === 'type_asc') return a.change_type.localeCompare(b.change_type);
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  const totalPages = Math.ceil(sortedChanges.length / pageSize) || 1;
+  const paginatedChanges = sortedChanges.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Scope map for friendly naming
   const scopeMap = new Map<string, string>();
@@ -343,8 +352,11 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ scopes, onInspectAsset
                   <Filter className="w-3.5 h-3.5 text-slate-400" />
                   <select
                     value={selectedScope}
-                    onChange={(e) => setSelectedScope(e.target.value)}
-                    className="px-2.5 py-1.5 text-xs bg-navy-900 border border-navy-700 rounded-lg text-slate-200 focus:outline-none focus:border-cyan-500"
+                    onChange={(e) => {
+                      setSelectedScope(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="px-2.5 py-1.5 text-xs bg-navy-900 border border-navy-700 rounded-lg text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
                   >
                     <option value="all">All Authorised Scopes</option>
                     {scopes.map((s) => (
@@ -358,8 +370,11 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ scopes, onInspectAsset
                 {/* Change Type Filter */}
                 <select
                   value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs bg-navy-900 border border-navy-700 rounded-lg text-slate-200 focus:outline-none focus:border-cyan-500"
+                  onChange={(e) => {
+                    setSelectedType(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="px-2.5 py-1.5 text-xs bg-navy-900 border border-navy-700 rounded-lg text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
                 >
                   <option value="all">All Change Types</option>
                   <option value="ASSET_ADDED">Asset Added</option>
@@ -372,10 +387,29 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ scopes, onInspectAsset
                   <option value="TLS_CHANGED">TLS Cert Changed</option>
                 </select>
 
+                {/* Sort Dropdown */}
+                <select
+                  value={sortBy}
+                  onChange={(e) => {
+                    setSortBy(e.target.value as any);
+                    setCurrentPage(1);
+                  }}
+                  className="px-2.5 py-1.5 text-xs bg-navy-900 border border-navy-700 rounded-lg text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
+                >
+                  <option value="date_desc">Sort: Newest First</option>
+                  <option value="date_asc">Sort: Oldest First</option>
+                  <option value="asset_asc">Sort: Asset (A-Z)</option>
+                  <option value="asset_desc">Sort: Asset (Z-A)</option>
+                  <option value="type_asc">Sort: Change Type</option>
+                </select>
+
                 {/* Inconclusive toggle */}
                 <button
                   type="button"
-                  onClick={() => setFilterInconclusiveOnly(!filterInconclusiveOnly)}
+                  onClick={() => {
+                    setFilterInconclusiveOnly(!filterInconclusiveOnly);
+                    setCurrentPage(1);
+                  }}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono border transition-colors ${
                     filterInconclusiveOnly
                       ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
@@ -385,7 +419,37 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ scopes, onInspectAsset
                   <AlertTriangle className="w-3.5 h-3.5" />
                   Inconclusive Only
                 </button>
+
+                {/* Reset button */}
+                {(searchTerm || selectedScope !== 'all' || selectedType !== 'all' || filterInconclusiveOnly || sortBy !== 'date_desc') && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSearchTerm('');
+                      setSelectedScope('all');
+                      setSelectedType('all');
+                      setFilterInconclusiveOnly(false);
+                      setSortBy('date_desc');
+                      setCurrentPage(1);
+                    }}
+                    className="text-xs font-mono text-slate-400 hover:text-slate-200"
+                  >
+                    Reset
+                  </Button>
+                )}
               </div>
+            </div>
+
+            {/* Changes Count Summary Bar */}
+            <div className="flex items-center justify-between text-xs text-slate-400 border-t border-navy-750/70 pt-2.5">
+              <span>
+                Showing <span className="font-mono text-cyan-400 font-bold">{sortedChanges.length}</span> of {changes.length} change events
+                {sortedChanges.length !== changes.length && ' (filtered)'}
+              </span>
+              <span className="font-mono text-[11px] text-slate-500">
+                Phase 4 Baseline Delta Explorer
+              </span>
             </div>
           </Card>
 
@@ -430,7 +494,7 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ scopes, onInspectAsset
                       </td>
                     </tr>
                   ) : (
-                    filteredChanges.map((change) => {
+                    paginatedChanges.map((change) => {
                       const scopeName = scopeMap.get(change.scope_id) || 'Unknown Scope';
                       const createdDate = new Date(change.created_at);
                       const timeStr = createdDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -506,6 +570,54 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ scopes, onInspectAsset
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {sortedChanges.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-navy-750 bg-navy-950/40 text-xs font-mono gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400">Rows per page:</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="bg-navy-950 border border-navy-700 rounded px-2 py-1 text-slate-200 focus:outline-none focus:border-cyan-500"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                  <span className="text-slate-500">
+                    Showing {Math.min((currentPage - 1) * pageSize + 1, sortedChanges.length)} - {Math.min(currentPage * pageSize, sortedChanges.length)} of {sortedChanges.length}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="h-7 px-2.5 text-xs font-mono"
+                  >
+                    Prev
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className="h-7 px-2.5 text-xs font-mono"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
           </Card>
         </div>
       )}
