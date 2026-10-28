@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from ..database import get_db
-from ..models import DiscoveredAsset, ScanFinding
-from ..schemas import AssetOut, FindingOut
+from ..models import DiscoveredAsset, ScanFinding, AssetChangeRecord
+from ..schemas import AssetOut, FindingOut, ChangeRecordOut
 
 router = APIRouter(prefix="/assets", tags=["Discovered Assets"])
 
@@ -57,6 +57,19 @@ def get_asset(asset_id: str, db: Session = Depends(get_db)):
 def get_asset_findings(asset_id: str, db: Session = Depends(get_db)):
     findings = db.query(ScanFinding).filter(ScanFinding.asset_id == asset_id).order_by(desc(ScanFinding.created_at)).all()
     return [FindingOut.model_validate(f) for f in findings]
+
+@router.get("/{asset_id}/changes", response_model=List[ChangeRecordOut])
+def get_asset_changes(asset_id: str, db: Session = Depends(get_db)):
+    asset = db.query(DiscoveredAsset).filter(DiscoveredAsset.id == asset_id).first()
+    if not asset:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asset not found.")
+    changes = (
+        db.query(AssetChangeRecord)
+        .filter(AssetChangeRecord.asset_identifier == asset.host_or_ip)
+        .order_by(desc(AssetChangeRecord.created_at))
+        .all()
+    )
+    return changes
 
 @router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_asset(asset_id: str, db: Session = Depends(get_db)):

@@ -11,7 +11,8 @@ import {
   Globe,
   Lock,
   Layers,
-  Sparkles
+  Sparkles,
+  History
 } from 'lucide-react';
 import type { StatsOverview, ScanRun } from '../../api/types';
 import { Card } from '../ui/Card';
@@ -21,7 +22,7 @@ import { Button } from '../ui/Button';
 interface OverviewViewProps {
   stats: StatsOverview | null;
   recentScans: ScanRun[];
-  onNavigate: (tab: 'inventory' | 'discovery' | 'scopes') => void;
+  onNavigate: (tab: 'inventory' | 'discovery' | 'scopes' | 'changes') => void;
   onOpenNewScope: () => void;
   onOpenQuickScan: () => void;
   onToggleDemo: () => void;
@@ -93,7 +94,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       )}
 
       {/* Top Inventory Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Metric 1: Scopes */}
         <Card hover className="relative overflow-hidden group">
           <div className="flex items-center justify-between">
@@ -201,6 +202,34 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <span>Discovered</span>
             <span className="font-mono text-cyan-400 font-medium">
               {lastScan ? `${lastScan.assets_discovered_count} assets` : 'None'}
+            </span>
+          </div>
+        </Card>
+
+        {/* Metric 5: Phase 2 Baseline Changes */}
+        <Card
+          hover
+          className="relative overflow-hidden group cursor-pointer"
+          onClick={() => onNavigate('changes')}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-400 uppercase tracking-wider font-mono">
+              Baseline Changes
+            </span>
+            <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              <History className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline gap-2">
+            <span className="text-3xl font-extrabold text-cyan-400 font-mono tracking-tight">
+              {stats?.total_changes ?? 0}
+            </span>
+            <span className="text-xs text-slate-400">detected</span>
+          </div>
+          <div className="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-navy-750 pt-2.5">
+            <span>Phase 2 Monitoring</span>
+            <span className="text-cyan-400 font-mono font-medium flex items-center gap-1 text-[11px]">
+              View History <ArrowRight className="w-3 h-3" />
             </span>
           </div>
         </Card>

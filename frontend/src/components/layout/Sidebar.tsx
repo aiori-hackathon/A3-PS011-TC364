@@ -6,10 +6,11 @@ import {
   ShieldCheck,
   Radio,
   FlaskConical,
-  ExternalLink
+  ExternalLink,
+  History
 } from 'lucide-react';
 
-export type NavTab = 'overview' | 'inventory' | 'discovery' | 'scopes';
+export type NavTab = 'overview' | 'inventory' | 'changes' | 'discovery' | 'scopes';
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -42,6 +43,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       desc: 'Discovered domains, IPs, & services',
     },
     {
+      id: 'changes' as NavTab,
+      label: 'Change History',
+      icon: History,
+      desc: 'Asset diffs & baseline changes',
+    },
+    {
       id: 'discovery' as NavTab,
       label: 'Discovery Runs',
       icon: Radar,
@@ -72,7 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </span>
               </div>
               <p className="text-[10px] tracking-widest text-slate-400 uppercase font-mono">
-                PS-011 • Phase 1 Discovery
+                PS-011 • Discovery & Monitoring
               </p>
             </div>
           </div>

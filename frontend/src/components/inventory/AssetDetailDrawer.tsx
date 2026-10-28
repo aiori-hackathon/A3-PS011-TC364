@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Server,
   Globe,
@@ -11,9 +11,13 @@ import {
   AlertCircle,
   ExternalLink,
   Copy,
-  Check
+  Check,
+  History,
+  ArrowRight,
+  AlertTriangle
 } from 'lucide-react';
-import type { DiscoveredAsset, ScanFinding } from '../../api/types';
+import type { DiscoveredAsset, ScanFinding, AssetChangeRecord } from '../../api/types';
+import { api } from '../../api/client';
 import { Drawer } from '../ui/Drawer';
 import { Badge } from '../ui/Badge';
 
@@ -30,8 +34,29 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
   isOpen,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'dns' | 'http' | 'tls' | 'evidence'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'dns' | 'http' | 'tls' | 'evidence' | 'changes'>('overview');
+  const [assetChanges, setAssetChanges] = useState<AssetChangeRecord[]>([]);
+  const [loadingChanges, setLoadingChanges] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!asset) return;
+    let cancelled = false;
+    setLoadingChanges(true);
+    api.getAssetChanges(asset.id)
+      .then((res) => {
+        if (!cancelled) setAssetChanges(res);
+      })
+      .catch(() => {
+        if (!cancelled) setAssetChanges([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingChanges(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [asset]);
 
   if (!asset) return null;
 
@@ -46,6 +71,7 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
     { id: 'dns' as const, label: 'DNS Records', icon: Globe },
     { id: 'http' as const, label: 'HTTP / Web', icon: Server },
     { id: 'tls' as const, label: 'TLS Certificate', icon: Lock },
+    { id: 'changes' as const, label: `Changes (${assetChanges.length})`, icon: History },
     { id: 'evidence' as const, label: 'Findings & Raw Evidence', icon: FileCode },
   ];
 
@@ -504,6 +530,90 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Tab: Change History */}
+      {activeTab === 'changes' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs uppercase tracking-wider font-mono text-slate-400">
+              Phase 2 Detected Baseline Changes
+            </span>
+            <span className="text-xs font-mono text-cyan-400">
+              {assetChanges.length} record(s)
+            </span>
+          </div>
+
+          {loadingChanges ? (
+            <div className="p-8 text-center text-slate-500 font-mono text-xs">
+              Loading change history...
+            </div>
+          ) : assetChanges.length === 0 ? (
+            <div className="p-8 rounded-xl bg-navy-850 border border-navy-750 text-center space-y-2">
+              <History className="w-8 h-8 mx-auto text-slate-500 opacity-50" />
+              <div className="text-xs text-slate-300 font-medium">No Change Diffs Recorded</div>
+              <p className="text-[11px] text-slate-500">
+                This asset matches its established discovery baseline without detected alterations.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {assetChanges.map((change) => (
+                <div key={change.id} className="p-3.5 rounded-xl bg-navy-850 border border-navy-750 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                        {change.change_type}
+                      </span>
+                      {change.is_inconclusive && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" />
+                          INCONCLUSIVE
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      {new Date(change.created_at).toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="text-xs font-mono text-slate-300">
+                    <span className="text-slate-500">Attribute: </span>
+                    <span className="text-cyan-300">{change.attribute_name}</span>
+                  </div>
+
+                  {/* Diff */}
+                  <div className="grid grid-cols-2 gap-2 text-xs font-mono pt-1">
+                    <div className="p-2 rounded bg-navy-950 border border-navy-800">
+                      <div className="text-[10px] text-slate-500 uppercase">Previous</div>
+                      <div className="text-slate-400 truncate mt-0.5">
+                        {change.previous_value !== null && change.previous_value !== undefined
+                          ? JSON.stringify(change.previous_value)
+                          : 'None'}
+                      </div>
+                    </div>
+                    <div className="p-2 rounded bg-navy-950 border border-navy-800">
+                      <div className="text-[10px] text-cyan-400 uppercase">New Detected</div>
+                      <div className="text-cyan-300 truncate mt-0.5">
+                        {change.new_value !== null && change.new_value !== undefined
+                          ? JSON.stringify(change.new_value)
+                          : 'None'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Evidence Context */}
+                  {change.evidence && (
+                    <div className="text-[11px] text-slate-400 pt-1 border-t border-navy-800/80">
+                      <span className="text-slate-500 font-mono text-[10px]">Context: </span>
+                      {change.evidence.context || JSON.stringify(change.evidence)}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </Drawer>

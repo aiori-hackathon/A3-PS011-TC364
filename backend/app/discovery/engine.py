@@ -12,6 +12,7 @@ from .dns_resolver import resolve_dns_records
 from .port_scanner import scan_allowed_ports
 from .http_probe import probe_http_service
 from .tls_inspector import inspect_tls_certificate
+from .change_detector import create_snapshot_for_scan, detect_and_record_changes
 
 # Thread-safe cancellation set
 CANCELLED_SCANS: Set[str] = set()
@@ -323,6 +324,19 @@ async def execute_discovery_run(scan_id: str):
         add_log_entry(logs, f"Discovery run finished. Targets scanned: {targets_scanned}, Assets: {assets_discovered}, Findings: {findings_count}", "SUCCESS")
         scan.logs = logs
         db.commit()
+
+        # Phase 2: Create immutable baseline snapshot and detect changes against previous snapshot
+        try:
+            snapshot = create_snapshot_for_scan(db, scan_id, scope.id)
+            if snapshot:
+                changes = detect_and_record_changes(db, snapshot)
+                add_log_entry(logs, f"[Phase 2] Baseline snapshot created ({snapshot.asset_count} assets). Detected {len(changes)} change(s).", "SUCCESS")
+                scan.logs = logs
+                db.commit()
+        except Exception as snap_err:
+            add_log_entry(logs, f"[Phase 2] Change detection warning: {str(snap_err)}", "WARN")
+            scan.logs = logs
+            db.commit()
 
     except Exception as e:
         scan = db.query(ScanRun).filter(ScanRun.id == scan_id).first()

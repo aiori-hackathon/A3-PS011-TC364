@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from ..database import get_db
-from ..models import Scope, ScanRun, DiscoveredAsset, ScanFinding
+from ..models import Scope, ScanRun, DiscoveredAsset, ScanFinding, AssetChangeRecord
+from ..discovery.change_detector import create_snapshot_for_scan, detect_and_record_changes
 from ..schemas import StatsOverview, ScanOut
 
 router = APIRouter(prefix="", tags=["Stats & Demo"])
@@ -61,6 +62,11 @@ def get_stats_overview(db: Session = Depends(get_db)):
     findings = db.query(ScanFinding.finding_type).all()
     finding_counter = Counter([f[0] for f in findings])
 
+    # Phase 2: Changes summary
+    total_changes = db.query(AssetChangeRecord).count()
+    change_types = db.query(AssetChangeRecord.change_type).all()
+    change_counter = Counter([c[0] for c in change_types])
+
     return StatsOverview(
         total_scopes=total_scopes,
         total_assets=total_assets,
@@ -70,7 +76,9 @@ def get_stats_overview(db: Session = Depends(get_db)):
         last_scan=last_scan_out,
         asset_types_distribution=dict(type_counter),
         top_open_ports=top_ports,
-        findings_by_type=dict(finding_counter)
+        findings_by_type=dict(finding_counter),
+        total_changes=total_changes,
+        changes_by_type=dict(change_counter)
     )
 
 @router.post("/demo/seed")
@@ -313,6 +321,12 @@ def seed_demo_mode(db: Session = Depends(get_db)):
             ))
 
     db.commit()
+    
+    # Create baseline snapshot and initial change records for demo
+    snap = create_snapshot_for_scan(db, demo_scan.id, demo_scope.id)
+    if snap:
+        detect_and_record_changes(db, snap)
+
     return {
         "message": "Demo mode synthetic data loaded successfully. All data is visibly labeled as demo/synthetic.",
         "scope_id": demo_scope.id,

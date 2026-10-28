@@ -118,3 +118,33 @@ class StatsOverview(BaseModel):
     asset_types_distribution: Dict[str, int]
     top_open_ports: List[Dict[str, Any]]
     findings_by_type: Dict[str, int]
+    total_changes: int = 0
+    changes_by_type: Dict[str, int] = {}
+
+# Phase 2 Snapshot & Change Schemas
+class SnapshotOut(BaseModel):
+    id: str
+    scope_id: str
+    scan_run_id: str
+    asset_count: int
+    snapshot_data: List[Dict[str, Any]] = []
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+class ChangeRecordOut(BaseModel):
+    id: str
+    scope_id: str
+    from_snapshot_id: Optional[str] = None
+    to_snapshot_id: str
+    scan_run_id: str
+    asset_identifier: str
+    change_type: str
+    attribute_name: str
+    previous_value: Optional[Any] = None
+    new_value: Optional[Any] = None
+    evidence: Dict[str, Any] = {}
+    is_inconclusive: bool = False
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

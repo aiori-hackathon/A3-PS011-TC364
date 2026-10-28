@@ -25,6 +25,8 @@ class Scope(Base):
     # Relationships
     scans = relationship("ScanRun", back_populates="scope", cascade="all, delete-orphan")
     assets = relationship("DiscoveredAsset", back_populates="scope", cascade="all, delete-orphan")
+    snapshots = relationship("AssetSnapshot", back_populates="scope", cascade="all, delete-orphan")
+    changes = relationship("AssetChangeRecord", back_populates="scope", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("idx_scopes_name", "name"),
@@ -51,6 +53,8 @@ class ScanRun(Base):
     scope = relationship("Scope", back_populates="scans")
     assets = relationship("DiscoveredAsset", back_populates="scan_run")
     findings = relationship("ScanFinding", back_populates="scan_run", cascade="all, delete-orphan")
+    snapshot = relationship("AssetSnapshot", back_populates="scan_run", uselist=False, cascade="all, delete-orphan")
+    changes = relationship("AssetChangeRecord", back_populates="scan_run", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("idx_scans_status", "status"),
@@ -108,4 +112,58 @@ class ScanFinding(Base):
 
     __table_args__ = (
         Index("idx_findings_scan_type", "scan_run_id", "finding_type"),
+    )
+
+
+# --- Phase 2: Asset Change Detection & Monitoring Models ---
+
+class AssetSnapshot(Base):
+    __tablename__ = "asset_snapshots"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    scope_id = Column(String(36), ForeignKey("scopes.id", ondelete="CASCADE"), nullable=False, index=True)
+    scan_run_id = Column(String(36), ForeignKey("scan_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    asset_count = Column(Integer, default=0, nullable=False)
+    snapshot_data = Column(JSON, default=list, nullable=False) # Normalized asset observations
+
+    # Relationships
+    scope = relationship("Scope", back_populates="snapshots")
+    scan_run = relationship("ScanRun", back_populates="snapshot")
+    changes_from = relationship("AssetChangeRecord", foreign_keys="AssetChangeRecord.from_snapshot_id", back_populates="from_snapshot")
+    changes_to = relationship("AssetChangeRecord", foreign_keys="AssetChangeRecord.to_snapshot_id", back_populates="to_snapshot", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("idx_snapshots_scope_created", "scope_id", "created_at"),
+    )
+
+
+class AssetChangeRecord(Base):
+    __tablename__ = "asset_change_records"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    scope_id = Column(String(36), ForeignKey("scopes.id", ondelete="CASCADE"), nullable=False, index=True)
+    from_snapshot_id = Column(String(36), ForeignKey("asset_snapshots.id", ondelete="SET NULL"), nullable=True, index=True)
+    to_snapshot_id = Column(String(36), ForeignKey("asset_snapshots.id", ondelete="CASCADE"), nullable=False, index=True)
+    scan_run_id = Column(String(36), ForeignKey("scan_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    asset_identifier = Column(String(255), nullable=False, index=True) # Normalized host_or_ip
+    change_type = Column(String(50), nullable=False, index=True) # ASSET_ADDED, ASSET_REMOVED, IP_CHANGED, DNS_CHANGED, PORT_OPENED, PORT_CLOSED, TLS_CHANGED, HTTP_STATUS_CHANGED
+    attribute_name = Column(String(100), nullable=True) # e.g. "ip_address", "dns.A", "open_ports", "tls.expiry"
+    previous_value = Column(JSON, nullable=True)
+    new_value = Column(JSON, nullable=True)
+    evidence = Column(JSON, default=dict, nullable=False)
+    is_inconclusive = Column(Boolean, default=False, nullable=False) # True if unreachability/timeout ambiguous
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    # Relationships
+    scope = relationship("Scope", back_populates="changes")
+    from_snapshot = relationship("AssetSnapshot", foreign_keys=[from_snapshot_id], back_populates="changes_from")
+    to_snapshot = relationship("AssetSnapshot", foreign_keys=[to_snapshot_id], back_populates="changes_to")
+    scan_run = relationship("ScanRun", back_populates="changes")
+
+    __table_args__ = (
+        Index("idx_changes_scope_created", "scope_id", "created_at"),
+        Index("idx_changes_asset_type", "asset_identifier", "change_type"),
+        Index("idx_changes_snapshots", "from_snapshot_id", "to_snapshot_id"),
     )

@@ -16,6 +16,7 @@ import { OverviewView } from './components/overview/OverviewView';
 import { InventoryView } from './components/inventory/InventoryView';
 import { DiscoveryView } from './components/discovery/DiscoveryView';
 import { ScopeView } from './components/scope/ScopeView';
+import { ChangesView } from './components/changes/ChangesView';
 import { NewScanModal } from './components/discovery/NewScanModal';
 import { ScopeModal } from './components/scope/ScopeModal';
 
@@ -178,6 +179,10 @@ export const App: React.FC = () => {
       title: 'Discovered Asset Inventory',
       subtitle: 'Comprehensive inventory of authorized domains, IPs, services, and TLS certificates',
     },
+    changes: {
+      title: 'Asset Change History & Baseline Monitoring',
+      subtitle: 'Phase 2 detected additions, removals, service state shifts, and TLS certificate updates',
+    },
     discovery: {
       title: 'Discovery Runs & Engine Monitor',
       subtitle: 'Real-time progress, live execution console, and bounded probe logs',
@@ -237,6 +242,18 @@ export const App: React.FC = () => {
               selectedAsset={selectedAsset}
               onCloseDrawer={() => setIsDrawerOpen(false)}
               isDrawerOpen={isDrawerOpen}
+            />
+          )}
+
+          {currentTab === 'changes' && (
+            <ChangesView
+              scopes={scopes}
+              onInspectAsset={(host) => {
+                const found = assets.find((a) => a.host_or_ip === host);
+                if (found) {
+                  handleInspectAsset(found);
+                }
+              }}
             />
           )}
 

@@ -6,7 +6,9 @@ import type {
   ScanConfig,
   DiscoveredAsset,
   ScanFinding,
-  StatsOverview
+  StatsOverview,
+  AssetSnapshot,
+  AssetChangeRecord
 } from './types';
 
 const API_BASE = '/api';
@@ -97,10 +99,35 @@ export const api = {
   },
   getAsset: (id: string) => request<DiscoveredAsset>(`/assets/${id}`),
   getAssetFindings: (id: string) => request<ScanFinding[]>(`/assets/${id}/findings`),
+  getAssetChanges: (id: string) => request<AssetChangeRecord[]>(`/assets/${id}/changes`),
   deleteAsset: (id: string) =>
     request<void>(`/assets/${id}`, {
       method: 'DELETE',
     }),
+
+  // Phase 2: Changes & Snapshots
+  getChanges: (params?: {
+    scope_id?: string;
+    change_type?: string;
+    asset?: string;
+    is_inconclusive?: boolean;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.scope_id) searchParams.append('scope_id', params.scope_id);
+    if (params?.change_type) searchParams.append('change_type', params.change_type);
+    if (params?.asset) searchParams.append('asset', params.asset);
+    if (params?.is_inconclusive !== undefined) searchParams.append('is_inconclusive', params.is_inconclusive.toString());
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    const query = searchParams.toString();
+    return request<AssetChangeRecord[]>(query ? `/changes?${query}` : '/changes');
+  },
+  getChange: (id: string) => request<AssetChangeRecord>(`/changes/${id}`),
+  getSnapshots: (scopeId?: string) =>
+    request<AssetSnapshot[]>(scopeId ? `/snapshots?scope_id=${encodeURIComponent(scopeId)}` : '/snapshots'),
+  getSnapshot: (id: string) => request<AssetSnapshot>(`/snapshots/${id}`),
 
   // Stats & Demo
   getStatsOverview: () => request<StatsOverview>('/stats/overview'),

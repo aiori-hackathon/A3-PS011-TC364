@@ -151,4 +151,52 @@ export interface StatsOverview {
   asset_types_distribution: Record<string, number>;
   top_open_ports: Array<{ port: number; service: string; count: number }>;
   findings_by_type: Record<string, number>;
+  total_changes?: number;
+  changes_by_type?: Record<string, number>;
+}
+
+export type ChangeType =
+  | 'ASSET_ADDED'
+  | 'ASSET_REMOVED'
+  | 'IP_CHANGED'
+  | 'DNS_CHANGED'
+  | 'PORT_OPENED'
+  | 'PORT_CLOSED'
+  | 'HTTP_STATUS_CHANGED'
+  | 'TLS_CHANGED';
+
+export interface AssetSnapshot {
+  id: string;
+  scope_id: string;
+  scan_run_id: string;
+  asset_count: number;
+  snapshot_data: Array<{
+    asset_id?: string;
+    host_or_ip: string;
+    asset_type: string;
+    ip_address?: string | null;
+    status: string;
+    open_ports: OpenPort[];
+    dns_records: DnsRecords;
+    http_summary: HttpSummary;
+    tls_summary: TlsSummary;
+    observed_at: string;
+  }>;
+  created_at: string;
+}
+
+export interface AssetChangeRecord {
+  id: string;
+  scope_id: string;
+  from_snapshot_id?: string | null;
+  to_snapshot_id: string;
+  scan_run_id: string;
+  asset_identifier: string;
+  change_type: ChangeType;
+  attribute_name: string;
+  previous_value?: any;
+  new_value?: any;
+  evidence: Record<string, any>;
+  is_inconclusive: boolean;
+  created_at: string;
 }
