@@ -1,0 +1,31 @@
+import os
+from typing import List
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "ArgusTrace - Attack Surface Asset Discovery (Phase 1)"
+    API_V1_STR: str = "/api"
+    DATABASE_URL: str = "sqlite:///./argustrace.db"
+    
+    # CORS
+    CORS_ORIGINS: List[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+    ]
+    
+    # Discovery Limits & Safety Guardrails
+    MAX_CONCURRENT_PROBES: int = 10
+    TCP_TIMEOUT_SECONDS: float = 3.0
+    HTTP_TIMEOUT_SECONDS: float = 5.0
+    DNS_TIMEOUT_SECONDS: float = 3.0
+    RATE_LIMIT_DELAY_SECONDS: float = 0.1
+    MAX_PORTS_PER_SCAN: int = 50
+    DEFAULT_ALLOWED_PORTS: List[int] = [21, 22, 25, 53, 80, 110, 143, 443, 465, 587, 993, 995, 3000, 3306, 5432, 8000, 8080, 8443, 8888]
+    
+    # SSRF / Local Lab Safety
+    ALLOW_LOCAL_LAB_DEFAULT: bool = False
+    
+    model_config = {"env_file": ".env", "extra": "ignore"}
+
+settings = Settings()
