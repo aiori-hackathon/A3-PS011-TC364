@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+import app.database as app_db
 from app.main import app
 from app.database import Base, get_db
 
@@ -16,7 +17,10 @@ test_engine = create_engine(
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 @pytest.fixture(autouse=True)
-def setup_database():
+def setup_database(monkeypatch):
+    monkeypatch.setattr(app_db, "engine", test_engine)
+    monkeypatch.setattr(app_db, "SessionLocal", TestingSessionLocal)
+
     Base.metadata.create_all(bind=test_engine)
     
     def override_get_db():

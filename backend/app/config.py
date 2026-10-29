@@ -1,9 +1,9 @@
 import os
-from typing import List
+from typing import List, Optional
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "ArgusTrace - Attack Surface Asset Discovery (Phase 1)"
+    PROJECT_NAME: str = "ArgusTrace - Attack Surface Asset Discovery (PS-011)"
     API_V1_STR: str = "/api"
     DATABASE_URL: str = "sqlite:///./argustrace.db"
     
@@ -25,6 +25,17 @@ class Settings(BaseSettings):
     
     # SSRF / Local Lab Safety
     ALLOW_LOCAL_LAB_DEFAULT: bool = False
+
+    # Phase 5: Notifications & Integration Configuration (from env only)
+    ENABLE_LIVE_NOTIFICATIONS: bool = False
+    WEBHOOK_TIMEOUT_SECONDS: float = 5.0
+    MAX_NOTIFICATION_RETRIES: int = 3
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM: str = "argustrace@security.internal"
+    SMTP_TLS: bool = True
     
     model_config = {"env_file": ".env", "extra": "ignore"}
 

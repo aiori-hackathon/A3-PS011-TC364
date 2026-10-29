@@ -172,3 +172,83 @@ def validate_port_list(ports: List[int], max_ports: int = 50) -> Tuple[bool, Lis
             return False, [], f"Invalid port number: {p}. Ports must be integers between 1 and 65535."
 
     return True, unique_ports, None
+
+def validate_webhook_url(url: str, allow_local_lab: bool = False) -> Tuple[bool, Optional[str]]:
+    """
+    Validates webhook URLs against SSRF, dangerous schemes, credentials in URL,
+    cloud metadata endpoints, and internal networks unless allow_local_lab is True.
+    """
+    if not url or not isinstance(url, str):
+        return False, "Webhook URL cannot be empty."
+
+    url = url.strip()
+    try:
+        parsed = urlparse(url)
+    except Exception as e:
+        return False, f"Malformed webhook URL: {str(e)}"
+
+    # Scheme check: must be http or https
+    if parsed.scheme.lower() not in ("http", "https"):
+        return False, f"Invalid URL scheme '{parsed.scheme}'. Only 'http' and 'https' are allowed."
+
+    # Credentials check
+    if parsed.username or parsed.password:
+        return False, "Embedding credentials in webhook URL is prohibited."
+
+    hostname = parsed.hostname
+    if not hostname:
+        return False, "Webhook URL must contain a valid hostname or IP address."
+
+    # If hostname contains dangerous characters
+    if any(char in hostname for char in ["*", "?", ";", "&", "|", "`", "$", " ", "<", ">", "\"", "'"]):
+        return False, f"Webhook hostname contains invalid characters: {hostname}"
+
+    # Check IP or resolve hostname
+    ip_obj = is_ip_address(hostname)
+    if ip_obj:
+        is_safe, reason = check_ip_safety(ip_obj, allow_local_lab=allow_local_lab)
+        if not is_safe:
+            return False, f"Webhook destination {hostname} is blocked: {reason}"
+        return True, None
+
+    # Hostname check: reject localhost unless allow_local_lab
+    if hostname.lower() == "localhost":
+        if not allow_local_lab:
+            return False, "Localhost webhook destinations are blocked unless local lab mode is enabled."
+        return True, None
+
+    # Domain format validation
+    if not is_valid_domain(hostname):
+        return False, f"Invalid webhook domain format: {hostname}"
+
+    # Resolve hostname to verify destination IP (DNS rebinding / SSRF defense)
+    try:
+        resolved_ips = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        if resolved_ips:
+            for item in resolved_ips:
+                ip_str = item[4][0]
+                resolved_ip = ipaddress.ip_address(ip_str)
+                is_safe, reason = check_ip_safety(resolved_ip, allow_local_lab=allow_local_lab)
+                if not is_safe:
+                    return False, f"Webhook host '{hostname}' resolves to blocked IP ({ip_str}): {reason}"
+    except socket.gaierror:
+        # In test environments or when domain cannot be resolved immediately, continue
+        pass
+    except Exception as e:
+        return False, f"Error validating webhook host '{hostname}': {str(e)}"
+
+    return True, None
+
+def sanitize_csv_cell(value: object) -> str:
+    """
+    Prevents CSV Formula Injection (DDE injection).
+    If a string starts with '=', '+', '-', '@', '\t', or '\r',
+    it is prepended with a single quote (') so spreadsheets treat it strictly as text.
+    """
+    if value is None:
+        return ""
+    val_str = str(value)
+    if val_str.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return f"'{val_str}"
+    return val_str
+

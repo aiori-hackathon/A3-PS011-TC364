@@ -14,6 +14,12 @@ from .http_probe import probe_http_service
 from .tls_inspector import inspect_tls_certificate
 from .change_detector import create_snapshot_for_scan, detect_and_record_changes
 from .risk_classifier import evaluate_and_persist_findings
+from ..services.audit_service import log_audit_event
+from ..services.notification_service import (
+    evaluate_new_asset_rules,
+    evaluate_change_rules,
+    evaluate_finding_rules
+)
 
 # Thread-safe cancellation set
 CANCELLED_SCANS: Set[str] = set()
@@ -64,6 +70,15 @@ async def execute_discovery_run(scan_id: str):
         scan.logs = logs
         db.commit()
 
+        log_audit_event(
+            db=db,
+            action="DISCOVERY_RUN_STARTED",
+            entity_type="scan_run",
+            entity_id=scan.id,
+            actor=scope.authorised_by,
+            details={"scope_id": scope.id, "scope_name": scope.name, "targets_total": len(scope.targets or [])}
+        )
+
         # Parse scan configuration
         config = scan.config or {}
         selected_ports = config.get("ports", settings.DEFAULT_ALLOWED_PORTS)
@@ -90,6 +105,14 @@ async def execute_discovery_run(scan_id: str):
                 scan.completed_at = datetime.datetime.utcnow()
                 scan.logs = logs
                 db.commit()
+                log_audit_event(
+                    db=db,
+                    action="DISCOVERY_RUN_CANCELLED",
+                    entity_type="scan_run",
+                    entity_id=scan.id,
+                    actor=scope.authorised_by,
+                    details={"targets_scanned": targets_scanned, "scope_name": scope.name}
+                )
                 return
 
             # Target validation & SSRF check
@@ -224,6 +247,7 @@ async def execute_discovery_run(scan_id: str):
             ).first()
 
             now = datetime.datetime.utcnow()
+            is_new_asset = False
             if existing_asset:
                 existing_asset.scan_run_id = scan_id
                 existing_asset.asset_type = asset_type
@@ -236,6 +260,7 @@ async def execute_discovery_run(scan_id: str):
                 existing_asset.last_seen = now
                 asset_obj = existing_asset
             else:
+                is_new_asset = True
                 asset_obj = DiscoveredAsset(
                     scope_id=scope.id,
                     scan_run_id=scan_id,
@@ -255,6 +280,13 @@ async def execute_discovery_run(scan_id: str):
 
             db.flush() # ensure asset_obj has an id
 
+            # Phase 5: Trigger new asset alert policy if newly discovered
+            if is_new_asset:
+                try:
+                    evaluate_new_asset_rules(db, scope.id, asset_obj)
+                except Exception as notif_err:
+                    add_log_entry(logs, f"[Phase 5] Notification rule evaluation notice: {str(notif_err)}", "WARN")
+
             # 6. Phase 3: Evaluate explainable risk classification and persist deduplicated findings
             asset_findings = evaluate_and_persist_findings(
                 db=db,
@@ -263,6 +295,13 @@ async def execute_discovery_run(scan_id: str):
                 asset=asset_obj
             )
             findings_count += len(asset_findings)
+
+            # Phase 5: Trigger finding alert policy for newly observed findings
+            for finding in asset_findings:
+                try:
+                    evaluate_finding_rules(db, scope.id, finding)
+                except Exception as finding_notif_err:
+                    add_log_entry(logs, f"[Phase 5] Finding alert dispatch notice: {str(finding_notif_err)}", "WARN")
 
             targets_scanned += 1
             scan.targets_scanned = targets_scanned
@@ -281,6 +320,20 @@ async def execute_discovery_run(scan_id: str):
         scan.logs = logs
         db.commit()
 
+        log_audit_event(
+            db=db,
+            action="DISCOVERY_RUN_COMPLETED",
+            entity_type="scan_run",
+            entity_id=scan.id,
+            actor=scope.authorised_by,
+            details={
+                "scope_id": scope.id,
+                "targets_scanned": targets_scanned,
+                "assets_discovered": assets_discovered,
+                "findings_count": findings_count
+            }
+        )
+
         # Phase 2: Create immutable baseline snapshot and detect changes against previous snapshot
         try:
             snapshot = create_snapshot_for_scan(db, scan_id, scope.id)
@@ -289,6 +342,13 @@ async def execute_discovery_run(scan_id: str):
                 add_log_entry(logs, f"[Phase 2] Baseline snapshot created ({snapshot.asset_count} assets). Detected {len(changes)} change(s).", "SUCCESS")
                 scan.logs = logs
                 db.commit()
+
+                # Phase 5: Trigger change notification rules
+                for change in changes:
+                    try:
+                        evaluate_change_rules(db, scope.id, change)
+                    except Exception as ch_notif_err:
+                        add_log_entry(logs, f"[Phase 5] Change alert dispatch notice: {str(ch_notif_err)}", "WARN")
         except Exception as snap_err:
             add_log_entry(logs, f"[Phase 2] Change detection warning: {str(snap_err)}", "WARN")
             scan.logs = logs
@@ -304,6 +364,14 @@ async def execute_discovery_run(scan_id: str):
             add_log_entry(logs, f"Fatal error during discovery run: {str(e)}", "ERROR")
             scan.logs = logs
             db.commit()
+            log_audit_event(
+                db=db,
+                action="DISCOVERY_RUN_FAILED",
+                entity_type="scan_run",
+                entity_id=scan.id,
+                actor="System",
+                details={"error": str(e)}
+            )
     finally:
         CANCELLED_SCANS.discard(scan_id)
         db.close()

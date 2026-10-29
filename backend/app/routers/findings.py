@@ -7,6 +7,7 @@ from sqlalchemy import desc
 from ..database import get_db
 from ..models import ScanFinding, DiscoveredAsset, Scope
 from ..schemas import FindingOut, FindingStatusUpdate
+from ..services.audit_service import log_audit_event
 
 router = APIRouter(prefix="/findings", tags=["Findings & Risk Classification"])
 
@@ -160,5 +161,18 @@ def update_finding_status(
         finding.status_history = history
         db.commit()
         db.refresh(finding)
+
+        log_audit_event(
+            db=db,
+            action="FINDING_STATUS_UPDATED",
+            entity_type="finding",
+            entity_id=finding.id,
+            details={
+                "title": finding.title,
+                "previous_status": prev_status,
+                "new_status": new_status,
+                "note": payload.note
+            }
+        )
 
     return _to_finding_out(finding)

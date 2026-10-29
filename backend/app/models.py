@@ -183,3 +183,90 @@ class AssetChangeRecord(Base):
         Index("idx_changes_asset_type", "asset_identifier", "change_type"),
         Index("idx_changes_snapshots", "from_snapshot_id", "to_snapshot_id"),
     )
+
+
+# --- Phase 5: Alerts, Notifications, Reports & Audit Trail Models ---
+
+class NotificationRule(Base):
+    __tablename__ = "notification_rules"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    name = Column(String(120), nullable=False)
+    description = Column(Text, nullable=True)
+    is_enabled = Column(Boolean, default=True, nullable=False)
+    
+    # Event types: ASSET_DISCOVERED, ASSET_CHANGED, FINDING_DETECTED
+    event_type = Column(String(50), nullable=False, index=True)
+    scope_id = Column(String(36), ForeignKey("scopes.id", ondelete="CASCADE"), nullable=True, index=True)
+    
+    # Rule conditions: e.g. {"severities": ["CRITICAL", "HIGH"]}, {"change_types": ["ASSET_ADDED", "PORT_OPENED"]}
+    conditions = Column(JSON, default=dict, nullable=False)
+    
+    # Channels: ["webhook"], ["email"], etc.
+    channels = Column(JSON, default=list, nullable=False)
+    webhook_url = Column(String(500), nullable=True)
+    email_recipient = Column(String(255), nullable=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    scope = relationship("Scope")
+    events = relationship("NotificationEvent", back_populates="rule", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index("idx_notif_rules_event_enabled", "event_type", "is_enabled"),
+        Index("idx_notif_rules_scope", "scope_id"),
+    )
+
+
+class NotificationEvent(Base):
+    __tablename__ = "notification_events"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    rule_id = Column(String(36), ForeignKey("notification_rules.id", ondelete="SET NULL"), nullable=True, index=True)
+    scope_id = Column(String(36), ForeignKey("scopes.id", ondelete="CASCADE"), nullable=True, index=True)
+    
+    event_type = Column(String(50), nullable=False, index=True) # ASSET_DISCOVERED, ASSET_CHANGED, FINDING_DETECTED
+    channel = Column(String(30), nullable=False, index=True) # webhook, email
+    recipient = Column(String(255), nullable=False)
+    subject = Column(String(255), nullable=False)
+    message = Column(Text, nullable=False)
+    payload = Column(JSON, default=dict, nullable=False)
+    
+    # Delivery status: PENDING, SENT, FAILED
+    status = Column(String(20), default="PENDING", nullable=False, index=True)
+    error_message = Column(Text, nullable=True)
+    retry_count = Column(Integer, default=0, nullable=False)
+    max_retries = Column(Integer, default=3, nullable=False)
+    dedup_hash = Column(String(64), nullable=True, index=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    delivered_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    rule = relationship("NotificationRule", back_populates="events")
+    scope = relationship("Scope")
+
+    __table_args__ = (
+        Index("idx_notif_events_status_created", "status", "created_at"),
+        Index("idx_notif_events_dedup", "dedup_hash"),
+    )
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    action = Column(String(60), nullable=False, index=True) # e.g. DISCOVERY_RUN_STARTED, FINDING_STATUS_UPDATED, EXPORT_GENERATED
+    actor = Column(String(120), default="SecOps System", nullable=False)
+    entity_type = Column(String(50), nullable=False, index=True) # scan_run, finding, notification_rule, export, scope, asset
+    entity_id = Column(String(36), nullable=True, index=True)
+    details = Column(JSON, default=dict, nullable=False) # Sanitized metadata, no sensitive tokens/passwords
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+    __table_args__ = (
+        Index("idx_audit_action_created", "action", "created_at"),
+        Index("idx_audit_entity", "entity_type", "entity_id"),
+    )
+

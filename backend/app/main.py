@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 
 from .config import settings
 from .database import init_db
-from .routers import health, scopes, scans, assets, stats, changes, findings
+from .routers import health, scopes, scans, assets, stats, changes, findings, notifications, exports, audit
 
 # Configure logging
 logging.basicConfig(
@@ -56,6 +56,9 @@ app.include_router(assets.router, prefix=settings.API_V1_STR)
 app.include_router(stats.router, prefix=settings.API_V1_STR)
 app.include_router(changes.router, prefix=settings.API_V1_STR)
 app.include_router(findings.router, prefix=settings.API_V1_STR)
+app.include_router(notifications.router, prefix=settings.API_V1_STR)
+app.include_router(exports.router, prefix=settings.API_V1_STR)
+app.include_router(audit.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():

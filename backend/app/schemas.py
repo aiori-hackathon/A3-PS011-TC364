@@ -166,3 +166,85 @@ class ChangeRecordOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+# Phase 5: Notifications, Reports & Audit Trail Schemas
+
+class NotificationRuleCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=120)
+    description: Optional[str] = None
+    is_enabled: bool = True
+    event_type: str = Field(..., description="ASSET_DISCOVERED, ASSET_CHANGED, or FINDING_DETECTED")
+    scope_id: Optional[str] = None
+    conditions: Dict[str, Any] = Field(default_factory=dict)
+    channels: List[str] = Field(default_factory=lambda: ["webhook"])
+    webhook_url: Optional[str] = None
+    email_recipient: Optional[str] = None
+
+class NotificationRuleUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_enabled: Optional[bool] = None
+    conditions: Optional[Dict[str, Any]] = None
+    channels: Optional[List[str]] = None
+    webhook_url: Optional[str] = None
+    email_recipient: Optional[str] = None
+
+class NotificationRuleOut(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    is_enabled: bool
+    event_type: str
+    scope_id: Optional[str] = None
+    scope_name: Optional[str] = None
+    conditions: Dict[str, Any] = {}
+    channels: List[str] = []
+    webhook_url: Optional[str] = None
+    email_recipient: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+class NotificationEventOut(BaseModel):
+    id: str
+    rule_id: Optional[str] = None
+    scope_id: Optional[str] = None
+    scope_name: Optional[str] = None
+    event_type: str
+    channel: str
+    recipient: str
+    subject: str
+    message: str
+    payload: Dict[str, Any] = {}
+    status: str
+    error_message: Optional[str] = None
+    retry_count: int
+    max_retries: int
+    created_at: datetime
+    delivered_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+class AuditLogOut(BaseModel):
+    id: str
+    action: str
+    actor: str
+    entity_type: str
+    entity_id: Optional[str] = None
+    details: Dict[str, Any] = {}
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+class AuditSummaryOut(BaseModel):
+    total_events: int
+    by_action: Dict[str, int] = {}
+    by_entity: Dict[str, int] = {}
+    recent_events: List[AuditLogOut] = []
+
+class IntegrationStatusOut(BaseModel):
+    live_notifications_enabled: bool
+    email_integration: Dict[str, Any]
+    webhook_integration: Dict[str, Any]
+

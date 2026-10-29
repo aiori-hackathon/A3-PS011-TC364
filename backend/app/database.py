@@ -5,7 +5,7 @@ from .config import settings
 # For SQLite, check_same_thread=False is needed for multi-threaded access in FastAPI
 engine = create_engine(
     settings.DATABASE_URL,
-    connect_args={"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {},
+    connect_args={"check_same_thread": False, "timeout": 30} if settings.DATABASE_URL.startswith("sqlite") else {},
     echo=False
 )
 
@@ -19,13 +19,14 @@ def get_db():
     finally:
         db.close()
 
-def init_db():
-    Base.metadata.create_all(bind=engine)
+def init_db(target_engine=None):
+    use_engine = target_engine or engine
+    Base.metadata.create_all(bind=use_engine)
 
     # Safe non-destructive column migration for SQLite
     try:
         from sqlalchemy import inspect, text
-        inspector = inspect(engine)
+        inspector = inspect(use_engine)
         if "scan_findings" in inspector.get_table_names():
             existing_cols = {col["name"] for col in inspector.get_columns("scan_findings")}
             cols_to_add = [
@@ -39,7 +40,7 @@ def init_db():
                 ("first_detected", "DATETIME"),
                 ("last_observed", "DATETIME"),
             ]
-            with engine.begin() as conn:
+            with use_engine.begin() as conn:
                 for col_name, col_def in cols_to_add:
                     if col_name not in existing_cols:
                         conn.execute(text(f"ALTER TABLE scan_findings ADD COLUMN {col_name} {col_def}"))
@@ -49,3 +50,4 @@ def init_db():
     except Exception as e:
         import logging
         logging.getLogger("argustrace").warning(f"Database migration note: {e}")
+
