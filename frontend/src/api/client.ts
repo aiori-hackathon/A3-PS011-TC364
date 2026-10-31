@@ -21,9 +21,8 @@ import type {
   ScheduleUpdatePayload,
 } from './types';
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)
-  ? `${(import.meta.env.VITE_API_URL as string).replace(/\/$/, '')}/api`
-  : '/api';
+const rawBase = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/api\/?$/, '').replace(/\/$/, '') || '';
+const API_BASE = rawBase ? `${rawBase}/api` : '/api';
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${endpoint}`;

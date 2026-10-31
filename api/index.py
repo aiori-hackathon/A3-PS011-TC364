@@ -23,15 +23,14 @@ from app.database import init_db, SessionLocal
 # Guarantee DB tables are initialized in serverless environment
 init_db()
 
-# If running on Vercel and database has no scopes yet, seed demo data immediately
-if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
-    db = SessionLocal()
-    try:
-        from app.models import Scope
-        if db.query(Scope).count() == 0:
-            from app.routers.stats import get_or_create_demo_scope
-            get_or_create_demo_scope(db)
-    except Exception:
-        pass
-    finally:
-        db.close()
+# Guarantee canonical demo data is seeded if database has no scopes
+db = SessionLocal()
+try:
+    from app.models import Scope
+    if db.query(Scope).count() == 0:
+        from app.routers.stats import get_or_create_demo_scope
+        get_or_create_demo_scope(db)
+except Exception:
+    pass
+finally:
+    db.close()

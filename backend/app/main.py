@@ -39,20 +39,19 @@ async def lifespan(app: FastAPI):
     init_db()
     logger.info("Database schema initialized successfully.")
 
-    # In serverless/Vercel environment, seed demo attack surface if database is empty on cold start
-    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
-        db = SessionLocal()
-        try:
-            from .models import Scope
-            if db.query(Scope).count() == 0:
-                logger.info("Vercel cold start detected: Pre-seeding demo attack surface...")
-                from .routers.stats import get_or_create_demo_scope
-                get_or_create_demo_scope(db)
-                logger.info("Demo attack surface seeded successfully with canonical ID.")
-        except Exception as seed_err:
-            logger.warning(f"Note on Vercel demo seed: {seed_err}")
-        finally:
-            db.close()
+    # Guarantee demo attack surface is seeded if database has no scopes on startup
+    db = SessionLocal()
+    try:
+        from .models import Scope
+        if db.query(Scope).count() == 0:
+            logger.info("Empty database detected: Pre-seeding demo attack surface...")
+            from .routers.stats import get_or_create_demo_scope
+            get_or_create_demo_scope(db)
+            logger.info("Demo attack surface seeded successfully with canonical ID.")
+    except Exception as seed_err:
+        logger.warning(f"Note on initial demo seed: {seed_err}")
+    finally:
+        db.close()
     
     # Start background scheduler task (only in non-serverless long-running processes)
     scheduler_task = None

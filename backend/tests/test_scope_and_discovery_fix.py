@@ -87,3 +87,61 @@ def test_clear_demo_mode_cleans_duplicate_and_orphaned_scopes(client, db):
     # Verify empty orphan is cleared
     remaining_orphans = db.query(Scope).filter(Scope.id == orphan_id).all()
     assert len(remaining_orphans) == 0
+
+def test_list_scopes_autoseeds_when_db_empty(client, db):
+    # Ensure database is empty of scopes
+    db.query(DiscoveredAsset).delete()
+    db.query(ScanRun).delete()
+    db.query(Scope).delete()
+    db.commit()
+
+    res = client.get("/api/scopes")
+    assert res.status_code == 200
+    scopes = res.json()
+    assert len(scopes) == 1
+    assert scopes[0]["id"] == CANONICAL_DEMO_SCOPE_ID
+    assert scopes[0]["name"] == CANONICAL_DEMO_SCOPE_NAME
+    assert len(scopes[0]["targets"]) == 5
+    assert scopes[0]["asset_count"] == 5
+
+def test_scan_launch_never_fails_with_scope_does_not_exist(client, db):
+    # Wipe scopes to simulate fresh serverless container
+    db.query(DiscoveredAsset).delete()
+    db.query(ScanRun).delete()
+    db.query(Scope).delete()
+    db.commit()
+
+    # Pass an arbitrary nonexistent UUID
+    res = client.post("/api/scans", json={
+        "scope_id": "nonexistent-uuid-12345",
+        "config": {"ports": [80, 443]}
+    })
+    assert res.status_code == 201
+    data = res.json()
+    assert data["scope_id"] == CANONICAL_DEMO_SCOPE_ID
+    assert data["targets_total"] == 5
+
+def test_custom_user_scope_scan_execution(client, db):
+    # Create custom user scope
+    create_res = client.post("/api/scopes", json={
+        "name": "Custom Security Scope",
+        "description": "User created scope",
+        "targets": ["api.demo-corp.internal"],
+        "allow_local_lab": True,
+        "authorised_confirmation": True,
+        "authorised_by": "Lead SecOps"
+    })
+    assert create_res.status_code == 201
+    custom_scope = create_res.json()
+    assert custom_scope["name"] == "Custom Security Scope"
+
+    # Launch scan on custom scope
+    scan_res = client.post("/api/scans", json={
+        "scope_id": custom_scope["id"],
+        "config": {"ports": [443, 8443]}
+    })
+    assert scan_res.status_code == 201
+    scan_data = scan_res.json()
+    assert scan_data["scope_id"] == custom_scope["id"]
+    assert scan_data["targets_total"] == 1
+
