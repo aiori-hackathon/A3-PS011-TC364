@@ -1,6 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 import logging
+import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -37,24 +38,42 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing ArgusTrace database schema...")
     init_db()
     logger.info("Database schema initialized successfully.")
+
+    # In serverless/Vercel environment, seed demo attack surface if database is empty on cold start
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        db = SessionLocal()
+        try:
+            from .models import Scope
+            if db.query(Scope).count() == 0:
+                logger.info("Vercel cold start detected: Pre-seeding demo attack surface...")
+                from .routers.stats import seed_demo_mode
+                seed_demo_mode(db)
+                logger.info("Demo attack surface seeded successfully.")
+        except Exception as seed_err:
+            logger.warning(f"Note on Vercel demo seed: {seed_err}")
+        finally:
+            db.close()
     
-    # Start background scheduler task
-    scheduler_task = asyncio.create_task(schedule_worker())
-    logger.info("Background discovery scheduler worker started.")
+    # Start background scheduler task (only in non-serverless long-running processes)
+    scheduler_task = None
+    if not os.environ.get("VERCEL") and not os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        scheduler_task = asyncio.create_task(schedule_worker())
+        logger.info("Background discovery scheduler worker started.")
     
     yield
     
-    scheduler_task.cancel()
-    try:
-        await scheduler_task
-    except asyncio.CancelledError:
-        pass
+    if scheduler_task:
+        scheduler_task.cancel()
+        try:
+            await scheduler_task
+        except asyncio.CancelledError:
+            pass
     logger.info("ArgusTrace shutting down.")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="Authorized Attack-Surface Asset Discovery & Initial Inventory Engine (PS-011 Phase 1)",
-    version="1.0.0-phase1",
+    description="Authorized Attack-Surface Asset Discovery & Initial Inventory Engine (PS-011)",
+    version="1.0.0-ps011",
     lifespan=lifespan
 )
 
@@ -77,24 +96,31 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Internal server error occurred. Check backend logs for diagnostics."}
     )
 
-# Include API Routers under /api
-app.include_router(health.router, prefix=settings.API_V1_STR)
-app.include_router(scopes.router, prefix=settings.API_V1_STR)
-app.include_router(scans.router, prefix=settings.API_V1_STR)
-app.include_router(assets.router, prefix=settings.API_V1_STR)
-app.include_router(stats.router, prefix=settings.API_V1_STR)
-app.include_router(changes.router, prefix=settings.API_V1_STR)
-app.include_router(findings.router, prefix=settings.API_V1_STR)
-app.include_router(notifications.router, prefix=settings.API_V1_STR)
-app.include_router(exports.router, prefix=settings.API_V1_STR)
-app.include_router(audit.router, prefix=settings.API_V1_STR)
-app.include_router(schedules.router, prefix=settings.API_V1_STR)
+# Include API Routers under /api and root fallback
+api_routers = [
+    health.router,
+    scopes.router,
+    scans.router,
+    assets.router,
+    stats.router,
+    changes.router,
+    findings.router,
+    notifications.router,
+    exports.router,
+    audit.router,
+    schedules.router,
+]
 
+for r in api_routers:
+    app.include_router(r, prefix=settings.API_V1_STR)
+    app.include_router(r)
+
+@app.get("/api")
 @app.get("/")
 def root():
     return {
         "app": "ArgusTrace",
-        "description": "Authorized Attack Surface Discovery Engine - Phase 1 Prototype",
+        "description": "Authorized Attack Surface Discovery Engine - PS-011 Prototype",
         "docs_url": "/docs",
         "api_v1": "/api"
     }

@@ -1,11 +1,25 @@
 import os
+import tempfile
 from typing import List, Optional
 from pydantic_settings import BaseSettings
+
+def get_default_db_url() -> str:
+    env_db = os.environ.get("DATABASE_URL")
+    if env_db:
+        return env_db
+    if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
+        tmp_dir = tempfile.gettempdir().replace("\\", "/")
+        return f"sqlite:///{tmp_dir}/argustrace.db"
+    
+    # Absolute path to backend/argustrace.db regardless of invocation working directory
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    db_path = os.path.join(base_dir, "argustrace.db").replace("\\", "/")
+    return f"sqlite:///{db_path}"
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "ArgusTrace - Attack Surface Asset Discovery (PS-011)"
     API_V1_STR: str = "/api"
-    DATABASE_URL: str = "sqlite:///./argustrace.db"
+    DATABASE_URL: str = get_default_db_url()
     
     # CORS
     CORS_ORIGINS: List[str] = [
