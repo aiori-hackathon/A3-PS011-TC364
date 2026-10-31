@@ -7,6 +7,7 @@ This repository contains the complete implementation, presentation materials, an
 **YouTube Video Link:** https://youtu.be/_wlLSe1Hvmo  
 **Presentation:** [A3-PS011-TC364_PPT.pdf](./A3-PS011-TC364_PPT.pdf)  
 **Proposed Structure:** [Proposed-structure-hackathon.pdf](./Proposed-structure-hackathon.pdf)  
+**Live Prototype:** https://argustrace-ps011-tc364.vercel.app/
 
 ---
 
