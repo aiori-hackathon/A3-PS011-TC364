@@ -8,10 +8,12 @@ import {
   FlaskConical,
   ExternalLink,
   History,
-  ShieldAlert
+  ShieldAlert,
+  Bell,
+  Clock
 } from 'lucide-react';
 
-export type NavTab = 'overview' | 'inventory' | 'changes' | 'findings' | 'discovery' | 'scopes';
+export type NavTab = 'overview' | 'inventory' | 'changes' | 'findings' | 'discovery' | 'schedules' | 'scopes' | 'reports';
 
 interface SidebarProps {
   currentTab: NavTab;
@@ -62,10 +64,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
       desc: 'Active scan progress & logs',
     },
     {
+      id: 'schedules' as NavTab,
+      label: 'Scheduled Discovery',
+      icon: Clock,
+      desc: 'Recurring scans & change automations',
+    },
+    {
       id: 'scopes' as NavTab,
       label: 'Scope Settings',
       icon: ShieldCheck,
       desc: 'Authorised targets & policies',
+    },
+    {
+      id: 'reports' as NavTab,
+      label: 'Reports & Alerts',
+      icon: Bell,
+      desc: 'Alert rules, exports & audit log',
     },
   ];
 

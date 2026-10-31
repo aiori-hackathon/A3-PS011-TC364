@@ -373,5 +373,15 @@ async def execute_discovery_run(scan_id: str):
                 details={"error": str(e)}
             )
     finally:
+        try:
+            if 'scan' in locals() and scan and scan.schedule_id:
+                from ..models import DiscoverySchedule
+                sched = db.query(DiscoverySchedule).filter(DiscoverySchedule.id == scan.schedule_id).first()
+                if sched:
+                    sched.last_run_status = scan.status
+                    sched.last_scan_run_id = scan.id
+                    db.commit()
+        except Exception:
+            pass
         CANCELLED_SCANS.discard(scan_id)
         db.close()

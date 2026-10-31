@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import asynccontextmanager
 import logging
 from fastapi import FastAPI, Request
@@ -5,8 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .config import settings
-from .database import init_db
-from .routers import health, scopes, scans, assets, stats, changes, findings, notifications, exports, audit
+from .database import init_db, SessionLocal
+from .routers import health, scopes, scans, assets, stats, changes, findings, notifications, exports, audit, schedules
+from .services.schedule_service import check_and_run_due_schedules
 
 # Configure logging
 logging.basicConfig(
@@ -15,12 +17,38 @@ logging.basicConfig(
 )
 logger = logging.getLogger("argustrace")
 
+async def schedule_worker():
+    """Background worker that periodically checks and executes due discovery schedules."""
+    while True:
+        try:
+            await asyncio.sleep(20)
+            db = SessionLocal()
+            try:
+                await check_and_run_due_schedules(db)
+            finally:
+                db.close()
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.error(f"Error in discovery schedule background worker: {e}", exc_info=True)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Initializing ArgusTrace Phase 1 database schema...")
+    logger.info("Initializing ArgusTrace database schema...")
     init_db()
     logger.info("Database schema initialized successfully.")
+    
+    # Start background scheduler task
+    scheduler_task = asyncio.create_task(schedule_worker())
+    logger.info("Background discovery scheduler worker started.")
+    
     yield
+    
+    scheduler_task.cancel()
+    try:
+        await scheduler_task
+    except asyncio.CancelledError:
+        pass
     logger.info("ArgusTrace shutting down.")
 
 app = FastAPI(
@@ -34,6 +62,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r"^https:\/\/.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -59,6 +88,7 @@ app.include_router(findings.router, prefix=settings.API_V1_STR)
 app.include_router(notifications.router, prefix=settings.API_V1_STR)
 app.include_router(exports.router, prefix=settings.API_V1_STR)
 app.include_router(audit.router, prefix=settings.API_V1_STR)
+app.include_router(schedules.router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():

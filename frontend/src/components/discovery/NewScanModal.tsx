@@ -17,6 +17,7 @@ interface NewScanModalProps {
   onClose: () => void;
   scopes: Scope[];
   onLaunchScan: (scopeId: string, config: ScanConfig) => Promise<void>;
+  initialScopeId?: string;
 }
 
 export const NewScanModal: React.FC<NewScanModalProps> = ({
@@ -24,12 +25,22 @@ export const NewScanModal: React.FC<NewScanModalProps> = ({
   onClose,
   scopes,
   onLaunchScan,
+  initialScopeId,
 }) => {
-  const [selectedScopeId, setSelectedScopeId] = useState<string>(scopes[0]?.id || '');
+  const [selectedScopeId, setSelectedScopeId] = useState<string>(initialScopeId || scopes[0]?.id || '');
   const [enableDns, setEnableDns] = useState(true);
   const [enablePorts, setEnablePorts] = useState(true);
   const [enableHttp, setEnableHttp] = useState(true);
   const [enableTls, setEnableTls] = useState(true);
+
+  // Sync selected scope when modal opens or initialScopeId changes
+  React.useEffect(() => {
+    if (initialScopeId) {
+      setSelectedScopeId(initialScopeId);
+    } else if (!selectedScopeId && scopes.length > 0) {
+      setSelectedScopeId(scopes[0].id);
+    }
+  }, [initialScopeId, isOpen, scopes]);
 
   // Port presets
   const [portPreset, setPortPreset] = useState<'web' | 'standard' | 'extended' | 'custom'>('standard');

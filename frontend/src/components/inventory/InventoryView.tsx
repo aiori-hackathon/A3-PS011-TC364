@@ -16,7 +16,6 @@ import type { DiscoveredAsset, ScanFinding, Scope } from '../../api/types';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { AssetDetailDrawer } from './AssetDetailDrawer';
 
 interface InventoryViewProps {
   assets: DiscoveredAsset[];
@@ -436,14 +435,6 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
           </div>
         )}
       </Card>
-
-      {/* Asset Detail Drawer */}
-      <AssetDetailDrawer
-        asset={selectedAsset}
-        findings={selectedAsset ? findingsMap[selectedAsset.id] || [] : []}
-        isOpen={isDrawerOpen}
-        onClose={onCloseDrawer}
-      />
     </div>
   );
 };

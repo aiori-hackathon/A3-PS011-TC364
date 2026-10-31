@@ -18,6 +18,9 @@ import { DiscoveryView } from './components/discovery/DiscoveryView';
 import { ScopeView } from './components/scope/ScopeView';
 import { ChangesView } from './components/changes/ChangesView';
 import { FindingsView } from './components/findings/FindingsView';
+import { ReportsAlertsView } from './components/reports/ReportsAlertsView';
+import { ScheduledDiscoveryView } from './components/schedules/ScheduledDiscoveryView';
+import { AssetDetailDrawer } from './components/inventory/AssetDetailDrawer';
 import { NewScanModal } from './components/discovery/NewScanModal';
 import { ScopeModal } from './components/scope/ScopeModal';
 
@@ -36,6 +39,7 @@ export const App: React.FC = () => {
 
   // Modals
   const [isNewScanModalOpen, setIsNewScanModalOpen] = useState(false);
+  const [modalScopeId, setModalScopeId] = useState<string | undefined>(undefined);
   const [isNewScopeModalOpen, setIsNewScopeModalOpen] = useState(false);
 
   // Health and state
@@ -192,9 +196,17 @@ export const App: React.FC = () => {
       title: 'Discovery Runs & Engine Monitor',
       subtitle: 'Real-time progress, live execution console, and bounded probe logs',
     },
+    schedules: {
+      title: 'Automated & Scheduled Discovery',
+      subtitle: 'Phase 6 recurring scans, automated baseline comparison, and continuous attack-surface monitoring',
+    },
     scopes: {
       title: 'Authorised Scope Settings',
       subtitle: 'Explicit target boundaries, local lab policies, and verified authorization records',
+    },
+    reports: {
+      title: 'Alerts, Notifications & Audit Telemetry',
+      subtitle: 'Phase 5 configurable alert rules, bounded delivery, sanitized reports, and audit trail',
     },
   };
 
@@ -287,15 +299,31 @@ export const App: React.FC = () => {
             />
           )}
 
+          {currentTab === 'schedules' && (
+            <ScheduledDiscoveryView
+              scopes={scopes}
+              onNavigateToScan={(scanId) => {
+                const found = scans.find((s) => s.id === scanId);
+                if (found) setActiveScan(found);
+                setCurrentTab('discovery');
+              }}
+            />
+          )}
+
           {currentTab === 'scopes' && (
             <ScopeView
               scopes={scopes}
               onOpenNewScope={() => setIsNewScopeModalOpen(true)}
               onDeleteScope={handleDeleteScope}
               onLaunchScanForScope={(scopeId) => {
+                setModalScopeId(scopeId);
                 setIsNewScanModalOpen(true);
               }}
             />
+          )}
+
+          {currentTab === 'reports' && (
+            <ReportsAlertsView scopes={scopes} />
           )}
         </main>
       </div>
@@ -303,9 +331,13 @@ export const App: React.FC = () => {
       {/* New Scan Modal */}
       <NewScanModal
         isOpen={isNewScanModalOpen}
-        onClose={() => setIsNewScanModalOpen(false)}
+        onClose={() => {
+          setIsNewScanModalOpen(false);
+          setModalScopeId(undefined);
+        }}
         scopes={scopes}
         onLaunchScan={handleLaunchScan}
+        initialScopeId={modalScopeId}
       />
 
       {/* New Scope Modal */}
@@ -313,6 +345,14 @@ export const App: React.FC = () => {
         isOpen={isNewScopeModalOpen}
         onClose={() => setIsNewScopeModalOpen(false)}
         onScopeCreated={fetchData}
+      />
+
+      {/* Global Asset Detail Inspection Drawer */}
+      <AssetDetailDrawer
+        asset={selectedAsset}
+        findings={selectedAsset ? findingsMap[selectedAsset.id] || [] : []}
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
       />
     </div>
   );

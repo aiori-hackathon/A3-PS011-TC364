@@ -10,9 +10,20 @@ import type {
   AssetSnapshot,
   AssetChangeRecord,
   FindingsCountSummary,
+  NotificationRule,
+  NotificationRuleCreatePayload,
+  NotificationEvent,
+  AuditLog,
+  AuditSummary,
+  IntegrationStatus,
+  DiscoverySchedule,
+  ScheduleCreatePayload,
+  ScheduleUpdatePayload,
 } from './types';
 
-const API_BASE = '/api';
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)
+  ? `${(import.meta.env.VITE_API_URL as string).replace(/\/$/, '')}/api`
+  : '/api';
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
@@ -174,4 +185,96 @@ export const api = {
     request<{ message: string }>('/demo/clear', {
       method: 'POST',
     }),
+
+  // Phase 5: Notifications & Alerts
+  getIntegrationStatus: () => request<IntegrationStatus>('/notifications/integrations/status'),
+  getNotificationRules: (params?: { scope_id?: string; event_type?: string; enabled_only?: boolean }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.scope_id) searchParams.append('scope_id', params.scope_id);
+    if (params?.event_type) searchParams.append('event_type', params.event_type);
+    if (params?.enabled_only !== undefined) searchParams.append('enabled_only', params.enabled_only.toString());
+    const query = searchParams.toString();
+    return request<NotificationRule[]>(query ? `/notifications/rules?${query}` : '/notifications/rules');
+  },
+  createNotificationRule: (payload: NotificationRuleCreatePayload) =>
+    request<NotificationRule>('/notifications/rules', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateNotificationRule: (id: string, payload: Partial<NotificationRuleCreatePayload>) =>
+    request<NotificationRule>(`/notifications/rules/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteNotificationRule: (id: string) =>
+    request<{ message: string }>(`/notifications/rules/${id}`, {
+      method: 'DELETE',
+    }),
+  getNotificationHistory: (params?: { status?: string; event_type?: string; channel?: string; limit?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.event_type) searchParams.append('event_type', params.event_type);
+    if (params?.channel) searchParams.append('channel', params.channel);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    const query = searchParams.toString();
+    return request<NotificationEvent[]>(query ? `/notifications/history?${query}` : '/notifications/history');
+  },
+  retryNotificationEvent: (id: string) =>
+    request<{ message: string; event: NotificationEvent }>(`/notifications/history/${id}/retry`, {
+      method: 'POST',
+    }),
+
+  // Phase 5: Audit Trail
+  getAuditLogs: (params?: { action?: string; entity_type?: string; search?: string; limit?: number; offset?: number }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.action) searchParams.append('action', params.action);
+    if (params?.entity_type) searchParams.append('entity_type', params.entity_type);
+    if (params?.search) searchParams.append('search', params.search);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    const query = searchParams.toString();
+    return request<AuditLog[]>(query ? `/audit?${query}` : '/audit');
+  },
+  getAuditSummary: () => request<AuditSummary>('/audit/summary'),
+
+  // Phase 5: Reports & Data Exports
+  getExportUrl: (resource: 'inventory' | 'changes' | 'findings', format: 'csv' | 'json', params?: Record<string, string>) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v) searchParams.append(k, v);
+      });
+    }
+    const query = searchParams.toString();
+    return `${API_BASE}/exports/${resource}/${format}${query ? `?${query}` : ''}`;
+  },
+
+  // Phase 6: Automated & Scheduled Discovery
+  getSchedules: (params?: { scope_id?: string }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.scope_id) searchParams.append('scope_id', params.scope_id);
+    const query = searchParams.toString();
+    return request<DiscoverySchedule[]>(query ? `/schedules?${query}` : '/schedules');
+  },
+  getSchedule: (id: string) => request<DiscoverySchedule>(`/schedules/${id}`),
+  createSchedule: (payload: ScheduleCreatePayload) =>
+    request<DiscoverySchedule>('/schedules', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateSchedule: (id: string, payload: ScheduleUpdatePayload) =>
+    request<DiscoverySchedule>(`/schedules/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteSchedule: (id: string) =>
+    request<{ message: string; id: string }>(`/schedules/${id}`, {
+      method: 'DELETE',
+    }),
+  triggerSchedule: (id: string) =>
+    request<ScanRun>(`/schedules/${id}/trigger`, {
+      method: 'POST',
+    }),
+  getScheduleExecutions: (id: string) =>
+    request<ScanRun[]>(`/schedules/${id}/executions`),
 };

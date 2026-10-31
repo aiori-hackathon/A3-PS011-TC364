@@ -36,7 +36,9 @@ def list_scans(scope_id: Optional[str] = None, db: Session = Depends(get_db)):
             started_at=s.started_at,
             completed_at=s.completed_at,
             error_message=s.error_message,
-            logs=s.logs or []
+            logs=s.logs or [],
+            schedule_id=s.schedule_id,
+            is_scheduled=s.is_scheduled or False
         ))
     return results
 
@@ -105,7 +107,9 @@ async def launch_discovery_run(payload: ScanCreate, db: Session = Depends(get_db
         started_at=new_scan.started_at,
         completed_at=new_scan.completed_at,
         error_message=new_scan.error_message,
-        logs=new_scan.logs or []
+        logs=new_scan.logs or [],
+        schedule_id=new_scan.schedule_id,
+        is_scheduled=new_scan.is_scheduled or False
     )
 
 @router.get("/{scan_id}", response_model=ScanOut)
@@ -128,7 +132,9 @@ def get_scan(scan_id: str, db: Session = Depends(get_db)):
         started_at=scan.started_at,
         completed_at=scan.completed_at,
         error_message=scan.error_message,
-        logs=scan.logs or []
+        logs=scan.logs or [],
+        schedule_id=scan.schedule_id,
+        is_scheduled=scan.is_scheduled or False
     )
 
 @router.post("/{scan_id}/cancel")

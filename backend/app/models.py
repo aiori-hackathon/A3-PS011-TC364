@@ -24,6 +24,7 @@ class Scope(Base):
 
     # Relationships
     scans = relationship("ScanRun", back_populates="scope", cascade="all, delete-orphan")
+    schedules = relationship("DiscoverySchedule", back_populates="scope", cascade="all, delete-orphan")
     assets = relationship("DiscoveredAsset", back_populates="scope", cascade="all, delete-orphan")
     snapshots = relationship("AssetSnapshot", back_populates="scope", cascade="all, delete-orphan")
     changes = relationship("AssetChangeRecord", back_populates="scope", cascade="all, delete-orphan")
@@ -49,9 +50,12 @@ class ScanRun(Base):
     completed_at = Column(DateTime, nullable=True)
     error_message = Column(Text, nullable=True)
     logs = Column(JSON, default=list, nullable=False) # list of log entries
+    schedule_id = Column(String(36), ForeignKey("discovery_schedules.id", ondelete="SET NULL"), nullable=True, index=True)
+    is_scheduled = Column(Boolean, default=False, nullable=False)
 
     # Relationships
     scope = relationship("Scope", back_populates="scans")
+    schedule = relationship("DiscoverySchedule", foreign_keys=[schedule_id], back_populates="executions")
     assets = relationship("DiscoveredAsset", back_populates="scan_run")
     findings = relationship("ScanFinding", back_populates="scan_run", cascade="all, delete-orphan")
     snapshot = relationship("AssetSnapshot", back_populates="scan_run", uselist=False, cascade="all, delete-orphan")
@@ -269,4 +273,40 @@ class AuditLog(Base):
         Index("idx_audit_action_created", "action", "created_at"),
         Index("idx_audit_entity", "entity_type", "entity_id"),
     )
+
+
+# --- Phase 6: Automated & Scheduled Discovery Models ---
+
+class DiscoverySchedule(Base):
+    __tablename__ = "discovery_schedules"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    scope_id = Column(String(36), ForeignKey("scopes.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(120), nullable=False)
+    description = Column(Text, nullable=True)
+    is_enabled = Column(Boolean, default=True, nullable=False)
+    
+    # Frequency: DAILY, WEEKLY, HOURLY_6, HOURLY_12, CUSTOM
+    frequency = Column(String(50), default="DAILY", nullable=False)
+    interval_hours = Column(Integer, default=24, nullable=False)
+    config = Column(JSON, default=dict, nullable=False) # ports, probe options, etc.
+    
+    last_run_at = Column(DateTime, nullable=True)
+    last_run_status = Column(String(30), nullable=True) # PENDING, IN_PROGRESS, COMPLETED, FAILED
+    last_scan_run_id = Column(String(36), ForeignKey("scan_runs.id", ondelete="SET NULL", use_alter=True), nullable=True)
+    next_run_at = Column(DateTime, nullable=False, index=True)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    scope = relationship("Scope", back_populates="schedules")
+    executions = relationship("ScanRun", foreign_keys="ScanRun.schedule_id", back_populates="schedule")
+    last_scan_run = relationship("ScanRun", foreign_keys=[last_scan_run_id], post_update=True)
+
+    __table_args__ = (
+        Index("idx_schedules_enabled_next", "is_enabled", "next_run_at"),
+        Index("idx_schedules_scope", "scope_id"),
+    )
+
 

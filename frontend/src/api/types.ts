@@ -60,6 +60,8 @@ export interface ScanRun {
     level: 'INFO' | 'WARN' | 'ERROR' | 'SUCCESS';
     message: string;
   }>;
+  schedule_id?: string | null;
+  is_scheduled?: boolean;
 }
 
 export interface OpenPort {
@@ -265,3 +267,133 @@ export interface AssetChangeRecord {
   is_inconclusive: boolean;
   created_at: string;
 }
+
+// --- Phase 5: Notifications, Reports, Exports & Audit Trail ---
+
+export interface NotificationRule {
+  id: string;
+  name: string;
+  description?: string | null;
+  is_enabled: boolean;
+  event_type: 'ASSET_DISCOVERED' | 'ASSET_CHANGED' | 'FINDING_DETECTED' | string;
+  scope_id?: string | null;
+  scope_name?: string | null;
+  conditions: {
+    severities?: string[];
+    change_types?: string[];
+    [key: string]: any;
+  };
+  channels: string[];
+  webhook_url?: string | null;
+  email_recipient?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface NotificationRuleCreatePayload {
+  name: string;
+  description?: string;
+  is_enabled?: boolean;
+  event_type: string;
+  scope_id?: string | null;
+  conditions?: Record<string, any>;
+  channels: string[];
+  webhook_url?: string | null;
+  email_recipient?: string | null;
+}
+
+export interface NotificationEvent {
+  id: string;
+  rule_id?: string | null;
+  scope_id?: string | null;
+  scope_name?: string | null;
+  event_type: string;
+  channel: string;
+  recipient: string;
+  subject: string;
+  message: string;
+  payload: Record<string, any>;
+  status: 'PENDING' | 'SENT' | 'FAILED' | string;
+  error_message?: string | null;
+  retry_count: number;
+  max_retries: number;
+  created_at: string;
+  delivered_at?: string | null;
+}
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  actor: string;
+  entity_type: string;
+  entity_id?: string | null;
+  details: Record<string, any>;
+  created_at: string;
+}
+
+export interface AuditSummary {
+  total_events: number;
+  by_action: Record<string, number>;
+  by_entity: Record<string, number>;
+  recent_events: AuditLog[];
+}
+
+export interface IntegrationStatus {
+  live_notifications_enabled: boolean;
+  email_integration: {
+    configured: boolean;
+    smtp_host_configured: boolean;
+    smtp_port?: number | null;
+    sender_address: string;
+    tls_enabled: boolean;
+  };
+  webhook_integration: {
+    configured: boolean;
+    timeout_seconds: number;
+    ssrf_protection_active: boolean;
+    live_dispatch_enabled: boolean;
+  };
+}
+
+// --- Phase 6: Automated & Scheduled Discovery Types ---
+
+export type ScheduleFrequency = 'DAILY' | 'WEEKLY' | 'HOURLY_6' | 'HOURLY_12' | 'CUSTOM';
+
+export interface DiscoverySchedule {
+  id: string;
+  scope_id: string;
+  scope_name?: string;
+  name: string;
+  description?: string | null;
+  is_enabled: boolean;
+  frequency: ScheduleFrequency | string;
+  interval_hours: number;
+  config: Record<string, any>;
+  last_run_at?: string | null;
+  last_run_status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED' | 'SKIPPED_CONCURRENT' | string | null;
+  last_scan_run_id?: string | null;
+  next_run_at: string;
+  created_at: string;
+  updated_at: string;
+  execution_count: number;
+}
+
+export interface ScheduleCreatePayload {
+  scope_id: string;
+  name: string;
+  description?: string;
+  is_enabled?: boolean;
+  frequency?: ScheduleFrequency | string;
+  interval_hours?: number;
+  config?: Record<string, any>;
+}
+
+export interface ScheduleUpdatePayload {
+  name?: string;
+  description?: string;
+  is_enabled?: boolean;
+  frequency?: ScheduleFrequency | string;
+  interval_hours?: number;
+  config?: Record<string, any>;
+}
+

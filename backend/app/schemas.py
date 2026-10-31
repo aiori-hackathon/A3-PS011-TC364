@@ -73,6 +73,8 @@ class ScanOut(BaseModel):
     completed_at: Optional[datetime] = None
     error_message: Optional[str] = None
     logs: List[Dict[str, Any]] = []
+    schedule_id: Optional[str] = None
+    is_scheduled: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -247,4 +249,44 @@ class IntegrationStatusOut(BaseModel):
     live_notifications_enabled: bool
     email_integration: Dict[str, Any]
     webhook_integration: Dict[str, Any]
+
+# --- Phase 6: Automated & Scheduled Discovery Schemas ---
+
+class ScheduleCreate(BaseModel):
+    scope_id: str
+    name: str = Field(..., min_length=1, max_length=120)
+    description: Optional[str] = None
+    is_enabled: bool = True
+    frequency: str = "DAILY" # DAILY, WEEKLY, HOURLY_6, HOURLY_12, CUSTOM
+    interval_hours: int = Field(24, ge=1, le=8760)
+    config: Optional[Dict[str, Any]] = None
+
+class ScheduleUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_enabled: Optional[bool] = None
+    frequency: Optional[str] = None
+    interval_hours: Optional[int] = Field(None, ge=1, le=8760)
+    config: Optional[Dict[str, Any]] = None
+
+class ScheduleOut(BaseModel):
+    id: str
+    scope_id: str
+    scope_name: Optional[str] = None
+    name: str
+    description: Optional[str] = None
+    is_enabled: bool
+    frequency: str
+    interval_hours: int
+    config: Dict[str, Any] = {}
+    last_run_at: Optional[datetime] = None
+    last_run_status: Optional[str] = None
+    last_scan_run_id: Optional[str] = None
+    next_run_at: datetime
+    created_at: datetime
+    updated_at: datetime
+    execution_count: int = 0
+
+    model_config = {"from_attributes": True}
+
 

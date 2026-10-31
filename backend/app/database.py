@@ -47,6 +47,17 @@ def init_db(target_engine=None):
                 # Backfill first_detected and last_observed if null
                 conn.execute(text("UPDATE scan_findings SET first_detected = created_at WHERE first_detected IS NULL"))
                 conn.execute(text("UPDATE scan_findings SET last_observed = created_at WHERE last_observed IS NULL"))
+
+        if "scan_runs" in inspector.get_table_names():
+            existing_cols = {col["name"] for col in inspector.get_columns("scan_runs")}
+            cols_to_add = [
+                ("schedule_id", "VARCHAR(36)"),
+                ("is_scheduled", "BOOLEAN DEFAULT 0"),
+            ]
+            with use_engine.begin() as conn:
+                for col_name, col_def in cols_to_add:
+                    if col_name not in existing_cols:
+                        conn.execute(text(f"ALTER TABLE scan_runs ADD COLUMN {col_name} {col_def}"))
     except Exception as e:
         import logging
         logging.getLogger("argustrace").warning(f"Database migration note: {e}")

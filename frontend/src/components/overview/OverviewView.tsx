@@ -16,6 +16,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import type { StatsOverview, ScanRun } from '../../api/types';
+import type { NavTab } from '../layout/Sidebar';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
@@ -24,7 +25,7 @@ import { SecurityAnalytics } from '../analytics/SecurityAnalytics';
 interface OverviewViewProps {
   stats: StatsOverview | null;
   recentScans: ScanRun[];
-  onNavigate: (tab: 'inventory' | 'discovery' | 'scopes' | 'changes' | 'findings') => void;
+  onNavigate: (tab: NavTab) => void;
   onOpenNewScope: () => void;
   onOpenQuickScan: () => void;
   onToggleDemo: () => void;
