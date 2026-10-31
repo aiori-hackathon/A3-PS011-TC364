@@ -80,17 +80,29 @@ def create_scope(payload: ScopeCreate, db: Session = Depends(get_db)):
         if sanitized not in sanitized_targets:
             sanitized_targets.append(sanitized)
 
-    new_scope = Scope(
-        name=payload.name,
-        description=payload.description,
-        targets=sanitized_targets,
-        allow_local_lab=payload.allow_local_lab,
-        authorised_confirmation=payload.authorised_confirmation,
-        authorised_by=payload.authorised_by
-    )
-    db.add(new_scope)
-    db.commit()
-    db.refresh(new_scope)
+    # Check if a scope with identical name already exists
+    existing = db.query(Scope).filter(Scope.name == payload.name.strip()).first()
+    if existing:
+        existing.description = payload.description or existing.description
+        existing.targets = sanitized_targets
+        existing.allow_local_lab = payload.allow_local_lab
+        existing.authorised_confirmation = payload.authorised_confirmation
+        existing.authorised_by = payload.authorised_by
+        db.commit()
+        db.refresh(existing)
+        new_scope = existing
+    else:
+        new_scope = Scope(
+            name=payload.name.strip(),
+            description=payload.description,
+            targets=sanitized_targets,
+            allow_local_lab=payload.allow_local_lab,
+            authorised_confirmation=payload.authorised_confirmation,
+            authorised_by=payload.authorised_by
+        )
+        db.add(new_scope)
+        db.commit()
+        db.refresh(new_scope)
 
     return ScopeOut(
         id=new_scope.id,

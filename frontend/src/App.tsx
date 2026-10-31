@@ -109,7 +109,12 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [activeScan]);
 
-  const isDemoActive = scopes.some((s) => s.name.includes('[DEMO / SYNTHETIC]'));
+  const isDemoActive = scopes.some(
+    (s) =>
+      s.name.includes('[DEMO / SYNTHETIC]') ||
+      s.name.toLowerCase().includes('demo lab') ||
+      s.id === '00000000-0000-0000-0000-000000000001'
+  );
 
   // Toggle demo mode
   const handleToggleDemo = async () => {

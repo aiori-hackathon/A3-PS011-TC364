@@ -46,9 +46,9 @@ async def lifespan(app: FastAPI):
             from .models import Scope
             if db.query(Scope).count() == 0:
                 logger.info("Vercel cold start detected: Pre-seeding demo attack surface...")
-                from .routers.stats import seed_demo_mode
-                seed_demo_mode(db)
-                logger.info("Demo attack surface seeded successfully.")
+                from .routers.stats import get_or_create_demo_scope
+                get_or_create_demo_scope(db)
+                logger.info("Demo attack surface seeded successfully with canonical ID.")
         except Exception as seed_err:
             logger.warning(f"Note on Vercel demo seed: {seed_err}")
         finally:

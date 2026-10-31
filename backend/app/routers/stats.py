@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from ..database import get_db
+from ..config import CANONICAL_DEMO_SCOPE_ID, CANONICAL_DEMO_SCOPE_NAME
 from ..models import Scope, ScanRun, DiscoveredAsset, ScanFinding, AssetChangeRecord
 from ..discovery.change_detector import create_snapshot_for_scan, detect_and_record_changes
 from ..discovery.risk_classifier import evaluate_and_persist_findings
@@ -135,70 +136,44 @@ def get_stats_overview(db: Session = Depends(get_db)):
         changes_timeline=changes_timeline
     )
 
-@router.post("/demo/seed")
-def seed_demo_mode(db: Session = Depends(get_db)):
-    """
-    Creates an explicitly labelled synthetic demo dataset so evaluators can inspect
-    dashboard components without running live target probes.
-    """
-    # Clean previous demo scope if any
-    existing_demo = db.query(Scope).filter(Scope.name == "[DEMO / SYNTHETIC] Local Lab & Authorised Sample").first()
-    if existing_demo:
-        db.delete(existing_demo)
-        db.commit()
-
+def _populate_demo_scope_data(db: Session, demo_scope: Scope):
+    """Populates realistic synthetic assets, completed scan run, findings, and snapshots for demo scope."""
     now = datetime.utcnow()
-    demo_scope = Scope(
-        name="[DEMO / SYNTHETIC] Local Lab & Authorised Sample",
-        description="Explicitly labelled synthetic demonstration data representing an authorized corporate attack surface.",
-        targets=[
-            "portal.demo-corp.internal",
-            "api.demo-corp.internal",
-            "vpn.demo-corp.internal",
-            "mail.demo-corp.internal",
-            "192.168.10.45"
-        ],
-        allow_local_lab=True,
-        authorised_confirmation=True,
-        authorised_by="Security Architect (Simulated Demo)"
-    )
-    db.add(demo_scope)
-    db.commit()
-    db.refresh(demo_scope)
 
-    # Demo Scan Run
-    demo_scan = ScanRun(
-        scope_id=demo_scope.id,
-        status="COMPLETED",
-        config={
-            "ports": [22, 25, 80, 443, 3000, 8080, 8443],
-            "enable_dns": True,
-            "enable_ports": True,
-            "enable_http": True,
-            "enable_tls": True
-        },
-        targets_total=5,
-        targets_scanned=5,
-        assets_discovered_count=5,
-        findings_count=16,
-        started_at=now - timedelta(minutes=12),
-        completed_at=now - timedelta(minutes=10),
-        logs=[
-            {"timestamp": (now - timedelta(minutes=12)).strftime("%H:%M:%S"), "level": "INFO", "message": "Initiating ArgusTrace Phase 1 Discovery Run for Scope: '[DEMO / SYNTHETIC]'"},
-            {"timestamp": (now - timedelta(minutes=12)).strftime("%H:%M:%S"), "level": "INFO", "message": "Authorised by: Security Architect | Local Lab Mode: True"},
-            {"timestamp": (now - timedelta(minutes=11)).strftime("%H:%M:%S"), "level": "INFO", "message": "Processing target: portal.demo-corp.internal"},
-            {"timestamp": (now - timedelta(minutes=11)).strftime("%H:%M:%S"), "level": "SUCCESS", "message": "DNS Resolved A -> 192.168.10.10, AAAA -> 2001:db8::10"},
-            {"timestamp": (now - timedelta(minutes=11)).strftime("%H:%M:%S"), "level": "SUCCESS", "message": "Open ports: [80, 443]"},
-            {"timestamp": (now - timedelta(minutes=11)).strftime("%H:%M:%S"), "level": "INFO", "message": "HTTP Responsive: 200 OK | Title: 'Demo Corporate SSO Portal'"},
-            {"timestamp": (now - timedelta(minutes=11)).strftime("%H:%M:%S"), "level": "INFO", "message": "TLS Certificate Valid: Subject='*.demo-corp.internal' (Expires in 84 days)"},
-            {"timestamp": (now - timedelta(minutes=10)).strftime("%H:%M:%S"), "level": "SUCCESS", "message": "Discovery run finished. Targets scanned: 5, Assets: 5, Findings: 16"}
-        ]
-    )
-    db.add(demo_scan)
-    db.commit()
-    db.refresh(demo_scan)
+    # Create completed demo scan run if not already present
+    demo_scan = db.query(ScanRun).filter(ScanRun.scope_id == demo_scope.id).first()
+    if not demo_scan:
+        demo_scan = ScanRun(
+            scope_id=demo_scope.id,
+            status="COMPLETED",
+            config={
+                "ports": [22, 25, 80, 443, 3000, 8080, 8443],
+                "enable_dns": True,
+                "enable_ports": True,
+                "enable_http": True,
+                "enable_tls": True
+            },
+            targets_total=5,
+            targets_scanned=5,
+            assets_discovered_count=5,
+            findings_count=16,
+            started_at=now - timedelta(minutes=12),
+            completed_at=now - timedelta(minutes=10),
+            logs=[
+                {"timestamp": (now - timedelta(minutes=12)).strftime("%H:%M:%S"), "level": "INFO", "message": "Initiating ArgusTrace Phase 1 Discovery Run for Scope: '[DEMO / SYNTHETIC]'"},
+                {"timestamp": (now - timedelta(minutes=12)).strftime("%H:%M:%S"), "level": "INFO", "message": "Authorised by: Security Architect | Local Lab Mode: True"},
+                {"timestamp": (now - timedelta(minutes=11)).strftime("%H:%M:%S"), "level": "INFO", "message": "Processing target: portal.demo-corp.internal"},
+                {"timestamp": (now - timedelta(minutes=11)).strftime("%H:%M:%S"), "level": "SUCCESS", "message": "DNS Resolved A -> 192.168.10.10, AAAA -> 2001:db8::10"},
+                {"timestamp": (now - timedelta(minutes=11)).strftime("%H:%M:%S"), "level": "SUCCESS", "message": "Open ports: [80, 443]"},
+                {"timestamp": (now - timedelta(minutes=11)).strftime("%H:%M:%S"), "level": "INFO", "message": "HTTP Responsive: 200 OK | Title: 'Demo Corporate SSO Portal'"},
+                {"timestamp": (now - timedelta(minutes=11)).strftime("%H:%M:%S"), "level": "INFO", "message": "TLS Certificate Valid: Subject='*.demo-corp.internal' (Expires in 84 days)"},
+                {"timestamp": (now - timedelta(minutes=10)).strftime("%H:%M:%S"), "level": "SUCCESS", "message": "Discovery run finished. Targets scanned: 5, Assets: 5, Findings: 16"}
+            ]
+        )
+        db.add(demo_scan)
+        db.commit()
+        db.refresh(demo_scan)
 
-    # Synthetic Assets
     assets_data = [
         {
             "host": "portal.demo-corp.internal",
@@ -336,22 +311,38 @@ def seed_demo_mode(db: Session = Depends(get_db)):
     ]
 
     for item in assets_data:
-        asset = DiscoveredAsset(
-            scope_id=demo_scope.id,
-            scan_run_id=demo_scan.id,
-            host_or_ip=item["host"],
-            asset_type=item["type"],
-            ip_address=item["ip"],
-            status=item["status"],
-            open_ports=item["ports"],
-            dns_records=item["dns"],
-            http_summary=item["http"],
-            tls_summary=item["tls"],
-            first_seen=now - timedelta(days=5),
-            last_seen=now - timedelta(minutes=10)
-        )
-        db.add(asset)
-        db.flush()
+        existing = db.query(DiscoveredAsset).filter(
+            DiscoveredAsset.scope_id == demo_scope.id,
+            DiscoveredAsset.host_or_ip == item["host"]
+        ).first()
+
+        if existing:
+            existing.scan_run_id = demo_scan.id
+            existing.ip_address = item["ip"]
+            existing.status = item["status"]
+            existing.open_ports = item["ports"]
+            existing.dns_records = item["dns"]
+            existing.http_summary = item["http"]
+            existing.tls_summary = item["tls"]
+            existing.last_seen = now
+            asset = existing
+        else:
+            asset = DiscoveredAsset(
+                scope_id=demo_scope.id,
+                scan_run_id=demo_scan.id,
+                host_or_ip=item["host"],
+                asset_type=item["type"],
+                ip_address=item["ip"],
+                status=item["status"],
+                open_ports=item["ports"],
+                dns_records=item["dns"],
+                http_summary=item["http"],
+                tls_summary=item["tls"],
+                first_seen=now - timedelta(days=5),
+                last_seen=now - timedelta(minutes=10)
+            )
+            db.add(asset)
+            db.flush()
 
         # Phase 3: Evaluate explainable risk classification and persist deduplicated findings
         evaluate_and_persist_findings(db, demo_scan.id, demo_scope.id, asset)
@@ -363,17 +354,111 @@ def seed_demo_mode(db: Session = Depends(get_db)):
     if snap:
         detect_and_record_changes(db, snap)
 
+def get_or_create_demo_scope(db: Session) -> Scope:
+    """
+    Idempotently retrieves or creates the canonical authorized demo scope with deterministic ID.
+    Consolidates any duplicate demo scopes or empty scopes so that only 1 canonical scope exists.
+    """
+    demo_targets = [
+        "portal.demo-corp.internal",
+        "api.demo-corp.internal",
+        "vpn.demo-corp.internal",
+        "mail.demo-corp.internal",
+        "192.168.10.45"
+    ]
+    now = datetime.utcnow()
+
+    # 1. Search for existing demo scope by canonical ID or name
+    demo_scope = db.query(Scope).filter(
+        (Scope.id == CANONICAL_DEMO_SCOPE_ID) | 
+        (Scope.name == CANONICAL_DEMO_SCOPE_NAME)
+    ).first()
+
+    # 2. Clean up any duplicate or orphaned scopes that share this name or are named "Demo Lab"
+    other_demos = db.query(Scope).filter(
+        (Scope.name.ilike("%[DEMO / SYNTHETIC]%")) |
+        (Scope.name.ilike("%Demo Lab%"))
+    ).all()
+
+    for other in other_demos:
+        if demo_scope and other.id == demo_scope.id:
+            continue
+        db.delete(other)
+    db.commit()
+
+    if not demo_scope:
+        demo_scope = Scope(
+            id=CANONICAL_DEMO_SCOPE_ID,
+            name=CANONICAL_DEMO_SCOPE_NAME,
+            description="Explicitly labelled synthetic demonstration data representing an authorized corporate attack surface.",
+            targets=demo_targets,
+            allow_local_lab=True,
+            authorised_confirmation=True,
+            authorised_by="Security Architect (Simulated Demo)",
+            created_at=now,
+            updated_at=now
+        )
+        db.add(demo_scope)
+        db.commit()
+        db.refresh(demo_scope)
+    else:
+        # Guarantee canonical ID and settings
+        demo_scope.name = CANONICAL_DEMO_SCOPE_NAME
+        demo_scope.targets = demo_targets
+        demo_scope.allow_local_lab = True
+        demo_scope.authorised_confirmation = True
+        demo_scope.authorised_by = "Security Architect (Simulated Demo)"
+        demo_scope.updated_at = now
+        db.commit()
+        db.refresh(demo_scope)
+
+    # 3. Ensure assets exist
+    asset_count = db.query(DiscoveredAsset).filter(DiscoveredAsset.scope_id == demo_scope.id).count()
+    if asset_count == 0:
+        _populate_demo_scope_data(db, demo_scope)
+
+    return demo_scope
+
+@router.post("/demo/seed")
+def seed_demo_mode(db: Session = Depends(get_db)):
+    """
+    Idempotently seeds or refreshes the canonical synthetic demo dataset.
+    Never creates duplicate scopes or dead UUIDs.
+    """
+    demo_scope = get_or_create_demo_scope(db)
+    _populate_demo_scope_data(db, demo_scope)
+    
+    asset_count = db.query(DiscoveredAsset).filter(DiscoveredAsset.scope_id == demo_scope.id).count()
+
     return {
         "message": "Demo mode synthetic data loaded successfully. All data is visibly labeled as demo/synthetic.",
         "scope_id": demo_scope.id,
-        "assets_count": len(assets_data)
+        "assets_count": asset_count
     }
 
 @router.post("/demo/clear")
 def clear_demo_mode(db: Session = Depends(get_db)):
-    demo_scopes = db.query(Scope).filter(Scope.name.like("%[DEMO / SYNTHETIC]%")).all()
+    """
+    Clears all demo / synthetic scopes and removes any orphaned zero-asset scopes.
+    """
+    demo_scopes = db.query(Scope).filter(
+        (Scope.id == CANONICAL_DEMO_SCOPE_ID) |
+        (Scope.name.like("%[DEMO / SYNTHETIC]%")) |
+        (Scope.name.ilike("%Demo Lab%"))
+    ).all()
     count = len(demo_scopes)
     for s in demo_scopes:
         db.delete(s)
+
+    # Clean orphaned scopes with zero assets and zero scans
+    all_scopes = db.query(Scope).all()
+    orphan_count = 0
+    for sc in all_scopes:
+        assets = db.query(DiscoveredAsset).filter(DiscoveredAsset.scope_id == sc.id).count()
+        scans = db.query(ScanRun).filter(ScanRun.scope_id == sc.id).count()
+        if assets == 0 and scans == 0:
+            db.delete(sc)
+            orphan_count += 1
+
     db.commit()
-    return {"message": f"Cleared {count} demo scope(s) and associated assets."}
+    return {"message": f"Cleared {count} demo scope(s) and {orphan_count} orphaned empty scope(s)."}

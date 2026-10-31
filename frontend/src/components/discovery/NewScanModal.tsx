@@ -33,14 +33,18 @@ export const NewScanModal: React.FC<NewScanModalProps> = ({
   const [enableHttp, setEnableHttp] = useState(true);
   const [enableTls, setEnableTls] = useState(true);
 
-  // Sync selected scope when modal opens or initialScopeId changes
+  // Sync selected scope when modal opens or scopes change
   React.useEffect(() => {
-    if (initialScopeId) {
+    if (initialScopeId && scopes.some((s) => s.id === initialScopeId)) {
       setSelectedScopeId(initialScopeId);
-    } else if (!selectedScopeId && scopes.length > 0) {
-      setSelectedScopeId(scopes[0].id);
+    } else if (!selectedScopeId || !scopes.some((s) => s.id === selectedScopeId)) {
+      if (scopes.length > 0) {
+        setSelectedScopeId(scopes[0].id);
+      } else {
+        setSelectedScopeId('');
+      }
     }
-  }, [initialScopeId, isOpen, scopes]);
+  }, [initialScopeId, isOpen, scopes, selectedScopeId]);
 
   // Port presets
   const [portPreset, setPortPreset] = useState<'web' | 'standard' | 'extended' | 'custom'>('standard');
@@ -58,8 +62,15 @@ export const NewScanModal: React.FC<NewScanModalProps> = ({
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!selectedScopeId) {
-      setErrorMessage('Please select a target scope.');
+    // Validate target scope
+    const targetScope = scopes.find((s) => s.id === selectedScopeId);
+    if (!targetScope) {
+      if (scopes.length > 0) {
+        setSelectedScopeId(scopes[0].id);
+        setErrorMessage(`Previous scope is no longer valid. Auto-selected '${scopes[0].name}'. Please click Start again.`);
+      } else {
+        setErrorMessage('No authorized scopes available. Please configure an authorized scope first.');
+      }
       return;
     }
 
@@ -102,7 +113,7 @@ export const NewScanModal: React.FC<NewScanModalProps> = ({
     }
   };
 
-  const selectedScope = scopes.find((s) => s.id === selectedScopeId);
+  const selectedScope = scopes.find((s) => s.id === selectedScopeId) || scopes[0];
 
   return (
     <Modal

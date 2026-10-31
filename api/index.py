@@ -29,8 +29,8 @@ if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
     try:
         from app.models import Scope
         if db.query(Scope).count() == 0:
-            from app.routers.stats import seed_demo_mode
-            seed_demo_mode(db)
+            from app.routers.stats import get_or_create_demo_scope
+            get_or_create_demo_scope(db)
     except Exception:
         pass
     finally:

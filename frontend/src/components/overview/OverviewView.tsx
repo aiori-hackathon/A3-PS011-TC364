@@ -89,7 +89,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 Configure Scope
               </Button>
               <Button variant="secondary" onClick={onToggleDemo}>
-                Load Demo Lab
+                {isDemoActive ? 'Reset Demo Lab' : 'Load Demo Lab'}
               </Button>
             </div>
           </div>

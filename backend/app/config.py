@@ -3,9 +3,15 @@ import tempfile
 from typing import List, Optional
 from pydantic_settings import BaseSettings
 
+CANONICAL_DEMO_SCOPE_ID = "00000000-0000-0000-0000-000000000001"
+CANONICAL_DEMO_SCOPE_NAME = "[DEMO / SYNTHETIC] Local Lab & Authorised Sample"
+
 def get_default_db_url() -> str:
     env_db = os.environ.get("DATABASE_URL")
     if env_db:
+        # Normalize legacy postgres:// to postgresql:// for SQLAlchemy 2.0 compatibility
+        if env_db.startswith("postgres://"):
+            env_db = env_db.replace("postgres://", "postgresql://", 1)
         return env_db
     if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
         tmp_dir = tempfile.gettempdir().replace("\\", "/")

@@ -4,7 +4,7 @@ from typing import Set, Dict, Any, List
 import ipaddress
 from sqlalchemy.orm import Session
 
-from ..database import SessionLocal
+from .. import database
 from ..models import Scope, ScanRun, DiscoveredAsset, ScanFinding
 from ..security import validate_target, resolve_and_verify_target, is_ip_address
 from ..config import settings
@@ -24,6 +24,137 @@ from ..services.notification_service import (
 # Thread-safe cancellation set
 CANCELLED_SCANS: Set[str] = set()
 
+SYNTHETIC_TARGET_PROFILES: Dict[str, Any] = {
+    "portal.demo-corp.internal": {
+        "type": "subdomain",
+        "ip": "192.168.10.10",
+        "status": "ACTIVE",
+        "ports": [
+            {"port": 80, "service": "HTTP", "latency_ms": 14.2, "status": "OPEN"},
+            {"port": 443, "service": "HTTPS", "latency_ms": 18.5, "status": "OPEN"}
+        ],
+        "dns": {"A": ["192.168.10.10"], "AAAA": ["2001:db8::10"], "CNAME": [], "MX": [], "NS": [], "TXT": ["v=spf1 include:_spf.demo-corp.internal ~all"]},
+        "http": {
+            "reachable": True,
+            "status_code": 200,
+            "scheme": "https",
+            "port": 443,
+            "server": "nginx/1.24.0",
+            "title": "Demo Corporate SSO Portal",
+            "latency_ms": 18.5,
+            "content_type": "text/html; charset=UTF-8",
+            "redirect_count": 1,
+            "headers": {"Server": "nginx/1.24.0", "Strict-Transport-Security": "max-age=31536000; includeSubDomains"}
+        },
+        "tls": {
+            "has_tls": True,
+            "port": 443,
+            "subject_cn": "*.demo-corp.internal",
+            "issuer_cn": "DigiCert Global G2 TLS RSA SHA256 2020 CA1",
+            "valid_from": (datetime.datetime.utcnow() - datetime.timedelta(days=281)).isoformat(),
+            "valid_to": (datetime.datetime.utcnow() + datetime.timedelta(days=84)).isoformat(),
+            "days_remaining": 84,
+            "is_expired": False,
+            "sans": ["*.demo-corp.internal", "demo-corp.internal"],
+            "tls_version": "TLSv1.3",
+            "cipher": "TLS_AES_256_GCM_SHA384"
+        }
+    },
+    "api.demo-corp.internal": {
+        "type": "subdomain",
+        "ip": "192.168.10.20",
+        "status": "ACTIVE",
+        "ports": [
+            {"port": 443, "service": "HTTPS", "latency_ms": 12.1, "status": "OPEN"},
+            {"port": 8443, "service": "HTTPS-Alt", "latency_ms": 15.3, "status": "OPEN"}
+        ],
+        "dns": {"A": ["192.168.10.20"], "AAAA": [], "CNAME": [], "MX": [], "NS": [], "TXT": []},
+        "http": {
+            "reachable": True,
+            "status_code": 200,
+            "scheme": "https",
+            "port": 443,
+            "server": "envoy/1.28.0",
+            "title": "API Gateway Health Check",
+            "latency_ms": 12.1,
+            "content_type": "application/json",
+            "redirect_count": 0,
+            "headers": {"Server": "envoy/1.28.0", "Content-Type": "application/json"}
+        },
+        "tls": {
+            "has_tls": True,
+            "port": 443,
+            "subject_cn": "api.demo-corp.internal",
+            "issuer_cn": "Let's Encrypt Authority X3",
+            "valid_from": (datetime.datetime.utcnow() - datetime.timedelta(days=70)).isoformat(),
+            "valid_to": (datetime.datetime.utcnow() + datetime.timedelta(days=20)).isoformat(),
+            "days_remaining": 20,
+            "is_expired": False,
+            "sans": ["api.demo-corp.internal"],
+            "tls_version": "TLSv1.3",
+            "cipher": "TLS_CHACHA20_POLY1305_SHA256"
+        }
+    },
+    "vpn.demo-corp.internal": {
+        "type": "subdomain",
+        "ip": "192.168.10.30",
+        "status": "ACTIVE",
+        "ports": [
+            {"port": 443, "service": "HTTPS", "latency_ms": 22.4, "status": "OPEN"},
+            {"port": 22, "service": "SSH", "latency_ms": 19.8, "status": "OPEN", "banner": "SSH-2.0-OpenSSH_9.3p1"}
+        ],
+        "dns": {"A": ["192.168.10.30"], "AAAA": [], "CNAME": [], "MX": [], "NS": [], "TXT": []},
+        "http": {
+            "reachable": True,
+            "status_code": 403,
+            "scheme": "https",
+            "port": 443,
+            "server": "Apache/2.4.58",
+            "title": "403 Forbidden - VPN Gateway",
+            "latency_ms": 22.4,
+            "content_type": "text/html",
+            "redirect_count": 0,
+            "headers": {"Server": "Apache/2.4.58"}
+        },
+        "tls": {
+            "has_tls": True,
+            "port": 443,
+            "subject_cn": "vpn.demo-corp.internal",
+            "issuer_cn": "DigiCert Global Root CA",
+            "valid_from": (datetime.datetime.utcnow() - datetime.timedelta(days=350)).isoformat(),
+            "valid_to": (datetime.datetime.utcnow() + datetime.timedelta(days=15)).isoformat(),
+            "days_remaining": 15,
+            "is_expired": False,
+            "sans": ["vpn.demo-corp.internal"],
+            "tls_version": "TLSv1.2",
+            "cipher": "ECDHE-RSA-AES256-GCM-SHA384"
+        }
+    },
+    "mail.demo-corp.internal": {
+        "type": "subdomain",
+        "ip": "192.168.10.40",
+        "status": "ACTIVE",
+        "ports": [
+            {"port": 25, "service": "SMTP", "latency_ms": 31.0, "status": "OPEN", "banner": "220 mail.demo-corp.internal ESMTP Postfix"},
+            {"port": 587, "service": "Submission", "latency_ms": 29.5, "status": "OPEN"}
+        ],
+        "dns": {"A": ["192.168.10.40"], "AAAA": [], "CNAME": [], "MX": ["10 mail.demo-corp.internal"], "NS": [], "TXT": []},
+        "http": {},
+        "tls": {}
+    },
+    "192.168.10.45": {
+        "type": "ipv4",
+        "ip": "192.168.10.45",
+        "status": "ACTIVE",
+        "ports": [
+            {"port": 22, "service": "SSH", "latency_ms": 11.2, "status": "OPEN", "banner": "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.6"}
+        ],
+        "dns": {"PTR": ["jumpbox.demo-corp.internal"]},
+        "http": {},
+        "tls": {}
+    }
+}
+
 def cancel_scan(scan_id: str) -> bool:
     CANCELLED_SCANS.add(scan_id)
     return True
@@ -39,7 +170,7 @@ async def execute_discovery_run(scan_id: str):
     """
     Background executor for an authorized attack surface discovery run (Phase 1).
     """
-    db: Session = SessionLocal()
+    db: Session = database.SessionLocal()
     try:
         scan: ScanRun | None = db.query(ScanRun).filter(ScanRun.id == scan_id).first()
         if not scan:
@@ -127,118 +258,155 @@ async def execute_discovery_run(scan_id: str):
 
             add_log_entry(logs, f"Processing target: {sanitized_target}")
 
-            # 1. DNS Resolution Probe
-            dns_results = {}
-            primary_ip = None
-            if enable_dns:
-                add_log_entry(logs, f"[{sanitized_target}] Querying DNS records (A, AAAA, CNAME, MX, NS, TXT, PTR)...")
-                dns_results = await resolve_dns_records(sanitized_target)
-                
-                # Determine primary IP
-                if dns_results.get("A"):
-                    primary_ip = dns_results["A"][0]
-                elif dns_results.get("AAAA"):
-                    primary_ip = dns_results["AAAA"][0]
-                elif is_ip_address(sanitized_target):
-                    primary_ip = sanitized_target
+            # Check if this target has a synthetic demonstration profile
+            synth_profile = SYNTHETIC_TARGET_PROFILES.get(sanitized_target)
+            if not synth_profile and (sanitized_target.endswith(".demo-corp.internal") or "[DEMO" in scope.name.upper() or "DEMO LAB" in scope.name.upper()):
+                synth_profile = {
+                    "type": "subdomain" if sanitized_target.count(".") > 1 else "domain",
+                    "ip": "192.168.10.50",
+                    "status": "ACTIVE",
+                    "ports": [{"port": 80, "service": "HTTP", "latency_ms": 15.0, "status": "OPEN"}, {"port": 443, "service": "HTTPS", "latency_ms": 18.0, "status": "OPEN"}],
+                    "dns": {"A": ["192.168.10.50"], "AAAA": [], "CNAME": [], "MX": [], "NS": [], "TXT": []},
+                    "http": {"reachable": True, "status_code": 200, "scheme": "https", "port": 443, "server": "nginx", "title": f"Demo Service - {sanitized_target}"},
+                    "tls": {"has_tls": True, "port": 443, "subject_cn": sanitized_target, "issuer_cn": "Demo Authority CA", "days_remaining": 60, "is_expired": False}
+                }
 
-            # Verify IP safety before active TCP/HTTP probing
-            target_to_probe = primary_ip or sanitized_target
-            is_safe, resolved_ip, safety_reason = resolve_and_verify_target(target_to_probe, allow_local_lab=scope.allow_local_lab)
-            if not is_safe:
-                add_log_entry(logs, f"[{sanitized_target}] SSRF Guardrail: Probe halted. {safety_reason}", "WARN")
-                targets_scanned += 1
-                scan.targets_scanned = targets_scanned
-                scan.logs = logs
-                db.commit()
-                continue
+            if synth_profile:
+                # Deterministic synthetic discovery simulation for authorized demonstration targets
+                dns_results = synth_profile.get("dns", {})
+                primary_ip = synth_profile.get("ip")
+                open_ports = synth_profile.get("ports", [])
+                http_summary = synth_profile.get("http", {})
+                tls_summary = synth_profile.get("tls", {})
+                asset_type = synth_profile.get("type", "subdomain")
+                is_active = True
+                asset_status = "ACTIVE"
 
-            if not primary_ip and resolved_ip:
-                primary_ip = resolved_ip
+                if enable_dns:
+                    add_log_entry(logs, f"[{sanitized_target}] Querying DNS records (A, AAAA, CNAME, MX, NS, TXT, PTR)...")
+                    if dns_results.get("A"):
+                        add_log_entry(logs, f"[{sanitized_target}] DNS Resolved A -> {', '.join(dns_results['A'])}")
+                if enable_ports and open_ports:
+                    port_nums = [p["port"] for p in open_ports]
+                    add_log_entry(logs, f"[{sanitized_target}] Probing {len(selected_ports)} bounded TCP ports...")
+                    add_log_entry(logs, f"[{sanitized_target}] Open ports detected: {port_nums}", "SUCCESS")
+                if enable_http and http_summary.get("reachable"):
+                    add_log_entry(logs, f"[{sanitized_target}] HTTP service responsive on port {http_summary.get('port', 80)} ({http_summary.get('scheme', 'http').upper()}) - Status: {http_summary.get('status_code')} | Title: '{http_summary.get('title')}'")
+                if enable_tls and tls_summary.get("has_tls"):
+                    add_log_entry(logs, f"[{sanitized_target}] TLS Valid: Subject='{tls_summary.get('subject_cn')}' ({tls_summary.get('days_remaining')} days remaining)")
+            else:
+                # 1. DNS Resolution Probe
+                dns_results = {}
+                primary_ip = None
+                if enable_dns:
+                    add_log_entry(logs, f"[{sanitized_target}] Querying DNS records (A, AAAA, CNAME, MX, NS, TXT, PTR)...")
+                    dns_results = await resolve_dns_records(sanitized_target)
+                    
+                    # Determine primary IP
+                    if dns_results.get("A"):
+                        primary_ip = dns_results["A"][0]
+                    elif dns_results.get("AAAA"):
+                        primary_ip = dns_results["AAAA"][0]
+                    elif is_ip_address(sanitized_target):
+                        primary_ip = sanitized_target
 
-            # 2. Bounded Port Scanning
-            open_ports = []
-            if enable_ports and target_to_probe:
-                add_log_entry(logs, f"[{sanitized_target}] Probing {len(selected_ports)} bounded TCP ports...")
-                open_ports = await scan_allowed_ports(
-                    host=target_to_probe,
-                    ports=selected_ports,
-                    concurrency=min(settings.MAX_CONCURRENT_PROBES, len(selected_ports)),
-                    timeout=settings.TCP_TIMEOUT_SECONDS
-                )
-                if open_ports:
-                    open_port_nums = [p["port"] for p in open_ports]
-                    add_log_entry(logs, f"[{sanitized_target}] Open ports detected: {open_port_nums}", "SUCCESS")
-                else:
-                    add_log_entry(logs, f"[{sanitized_target}] No responsive ports found in allowlist.")
+                # Verify IP safety before active TCP/HTTP probing
+                target_to_probe = primary_ip or sanitized_target
+                is_safe, resolved_ip, safety_reason = resolve_and_verify_target(target_to_probe, allow_local_lab=scope.allow_local_lab)
+                if not is_safe:
+                    add_log_entry(logs, f"[{sanitized_target}] SSRF Guardrail: Probe halted. {safety_reason}", "WARN")
+                    targets_scanned += 1
+                    scan.targets_scanned = targets_scanned
+                    scan.logs = logs
+                    db.commit()
+                    continue
 
-            # 3. HTTP / HTTPS Reachability & Metadata
-            http_summary = {}
-            if enable_http:
-                open_port_nums = [p["port"] for p in open_ports]
-                
-                # Determine which web ports to probe
-                web_ports_to_check = []
-                for p in [443, 8443]:
-                    if p in open_port_nums or not enable_ports:
-                        web_ports_to_check.append((p, True))
-                for p in [80, 8080, 8000, 8888, 3000]:
-                    if p in open_port_nums or not enable_ports:
-                        web_ports_to_check.append((p, False))
+                if not primary_ip and resolved_ip:
+                    primary_ip = resolved_ip
 
-                # If no specific open port was detected but ports scan was disabled, test default 80/443
-                if not web_ports_to_check and not enable_ports:
-                    web_ports_to_check = [(443, True), (80, False)]
-
-                for port, use_https in web_ports_to_check[:3]: # limit to top 3 web candidates
-                    if is_scan_cancelled(scan_id):
-                        break
-                    res = await probe_http_service(
-                        host=sanitized_target,
-                        port=port,
-                        use_https=use_https,
-                        allow_local_lab=scope.allow_local_lab,
-                        timeout=settings.HTTP_TIMEOUT_SECONDS
+                # 2. Bounded Port Scanning
+                open_ports = []
+                if enable_ports and target_to_probe:
+                    add_log_entry(logs, f"[{sanitized_target}] Probing {len(selected_ports)} bounded TCP ports...")
+                    open_ports = await scan_allowed_ports(
+                        host=target_to_probe,
+                        ports=selected_ports,
+                        concurrency=min(settings.MAX_CONCURRENT_PROBES, len(selected_ports)),
+                        timeout=settings.TCP_TIMEOUT_SECONDS
                     )
-                    if res and res.get("reachable"):
-                        http_summary = res
-                        add_log_entry(
-                            logs,
-                            f"[{sanitized_target}] HTTP service responsive on port {port} ({res.get('scheme', 'http').upper()}) "
-                            f"- Status: {res.get('status_code')} | Server: {res.get('server') or 'Unknown'} | Title: '{res.get('title') or 'None'}'"
+                    if open_ports:
+                        open_port_nums = [p["port"] for p in open_ports]
+                        add_log_entry(logs, f"[{sanitized_target}] Open ports detected: {open_port_nums}", "SUCCESS")
+                    else:
+                        add_log_entry(logs, f"[{sanitized_target}] No responsive ports found in allowlist.")
+
+                # 3. HTTP / HTTPS Reachability & Metadata
+                http_summary = {}
+                if enable_http:
+                    open_port_nums = [p["port"] for p in open_ports]
+                    
+                    # Determine which web ports to probe
+                    web_ports_to_check = []
+                    for p in [443, 8443]:
+                        if p in open_port_nums or not enable_ports:
+                            web_ports_to_check.append((p, True))
+                    for p in [80, 8080, 8000, 8888, 3000]:
+                        if p in open_port_nums or not enable_ports:
+                            web_ports_to_check.append((p, False))
+
+                    # If no specific open port was detected but ports scan was disabled, test default 80/443
+                    if not web_ports_to_check and not enable_ports:
+                        web_ports_to_check = [(443, True), (80, False)]
+
+                    for port, use_https in web_ports_to_check[:3]: # limit to top 3 web candidates
+                        if is_scan_cancelled(scan_id):
+                            break
+                        res = await probe_http_service(
+                            host=sanitized_target,
+                            port=port,
+                            use_https=use_https,
+                            allow_local_lab=scope.allow_local_lab,
+                            timeout=settings.HTTP_TIMEOUT_SECONDS
                         )
-                        break
+                        if res and res.get("reachable"):
+                            http_summary = res
+                            add_log_entry(
+                                logs,
+                                f"[{sanitized_target}] HTTP service responsive on port {port} ({res.get('scheme', 'http').upper()}) "
+                                f"- Status: {res.get('status_code')} | Server: {res.get('server') or 'Unknown'} | Title: '{res.get('title') or 'None'}'"
+                            )
+                            break
 
-            # 4. TLS Certificate Metadata
-            tls_summary = {}
-            if enable_tls:
-                # Check port 443 or 8443 if open or by default for domains
-                tls_ports = [p["port"] for p in open_ports if p["port"] in (443, 8443)]
-                if not tls_ports and not is_ip_address(sanitized_target):
-                    tls_ports = [443]
+                # 4. TLS Certificate Metadata
+                tls_summary = {}
+                if enable_tls:
+                    # Check port 443 or 8443 if open or by default for domains
+                    tls_ports = [p["port"] for p in open_ports if p["port"] in (443, 8443)]
+                    if not tls_ports and not is_ip_address(sanitized_target):
+                        tls_ports = [443]
 
-                for tport in tls_ports[:1]:
-                    add_log_entry(logs, f"[{sanitized_target}] Inspecting TLS certificate on port {tport}...")
-                    tls_info = await inspect_tls_certificate(sanitized_target, port=tport, timeout=settings.TCP_TIMEOUT_SECONDS)
-                    if tls_info and tls_info.get("has_tls"):
-                        tls_summary = tls_info
-                        exp_str = f"Expires in {tls_info['days_remaining']} days" if tls_info.get('days_remaining') is not None else "Unknown expiry"
-                        add_log_entry(
-                            logs,
-                            f"[{sanitized_target}] TLS Valid: Subject='{tls_info.get('subject_cn')}' Issuer='{tls_info.get('issuer_cn')}' ({exp_str})"
-                        )
-                        break
+                    for tport in tls_ports[:1]:
+                        add_log_entry(logs, f"[{sanitized_target}] Inspecting TLS certificate on port {tport}...")
+                        tls_info = await inspect_tls_certificate(sanitized_target, port=tport, timeout=settings.TCP_TIMEOUT_SECONDS)
+                        if tls_info and tls_info.get("has_tls"):
+                            tls_summary = tls_info
+                            exp_str = f"Expires in {tls_info['days_remaining']} days" if tls_info.get('days_remaining') is not None else "Unknown expiry"
+                            add_log_entry(
+                                logs,
+                                f"[{sanitized_target}] TLS Valid: Subject='{tls_info.get('subject_cn')}' Issuer='{tls_info.get('issuer_cn')}' ({exp_str})"
+                            )
+                            break
 
-            # 5. Asset Classification & Ingestion
-            asset_type = "domain"
-            if is_ip_address(sanitized_target):
-                asset_type = "ipv4" if "." in sanitized_target else "ipv6"
-            elif sanitized_target.count(".") > 1:
-                asset_type = "subdomain"
+                # 5. Asset Classification & Ingestion
+                asset_type = "domain"
+                if is_ip_address(sanitized_target):
+                    asset_type = "ipv4" if "." in sanitized_target else "ipv6"
+                elif sanitized_target.count(".") > 1:
+                    asset_type = "subdomain"
 
-            # Determine asset status: ACTIVE if open ports, DNS A/AAAA, or HTTP reachable
-            is_active = bool(open_ports or (dns_results.get("A") or dns_results.get("AAAA")) or http_summary.get("reachable"))
-            asset_status = "ACTIVE" if is_active else "UNRESPONSIVE"
+                # Determine asset status: ACTIVE if open ports, DNS A/AAAA, or HTTP reachable
+                is_active = bool(open_ports or (dns_results.get("A") or dns_results.get("AAAA")) or http_summary.get("reachable"))
+                asset_status = "ACTIVE" if is_active else "UNRESPONSIVE"
 
             # Upsert into DiscoveredAsset
             existing_asset = db.query(DiscoveredAsset).filter(
@@ -259,6 +427,8 @@ async def execute_discovery_run(scan_id: str):
                 existing_asset.tls_summary = tls_summary
                 existing_asset.last_seen = now
                 asset_obj = existing_asset
+                if asset_status == "ACTIVE":
+                    assets_discovered += 1
             else:
                 is_new_asset = True
                 asset_obj = DiscoveredAsset(
@@ -276,7 +446,8 @@ async def execute_discovery_run(scan_id: str):
                     last_seen=now
                 )
                 db.add(asset_obj)
-                assets_discovered += 1
+                if asset_status == "ACTIVE":
+                    assets_discovered += 1
 
             db.flush() # ensure asset_obj has an id
 
