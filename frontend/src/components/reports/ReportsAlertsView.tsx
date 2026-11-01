@@ -227,13 +227,13 @@ export const ReportsAlertsView: React.FC<ReportsAlertsViewProps> = ({ scopes }) 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs font-mono text-cyan-400 mb-1">
-            <span>PHASE 5 ENGINE</span>
+            <span>ALERTS ENGINE</span>
             <span>•</span>
             <span>ALERTS, EXPORTS & AUDIT TELEMETRY</span>
           </div>
           <h1 className="text-2xl font-extrabold text-slate-100 tracking-tight flex items-center gap-3">
             Reports & Notifications
-            <Badge variant="cyan" size="sm">Phase 5</Badge>
+            <Badge variant="cyan" size="sm">Live</Badge>
           </h1>
           <p className="text-xs text-slate-400 mt-1">
             Configurable alert rules, bounded webhook delivery, audit logs, and sanitized CSV/JSON reports.
@@ -423,7 +423,7 @@ export const ReportsAlertsView: React.FC<ReportsAlertsViewProps> = ({ scopes }) 
                 </p>
                 <div className="mt-4 pt-3 border-t border-navy-800 flex items-center gap-2 text-[11px] text-slate-400">
                   <ShieldCheck className="w-3 h-3 text-violet-400" />
-                  <span>Phase 2 Snapshot lineage tracked</span>
+                  <span>Baseline snapshot lineage tracked</span>
                 </div>
               </div>
 
@@ -461,7 +461,7 @@ export const ReportsAlertsView: React.FC<ReportsAlertsViewProps> = ({ scopes }) 
                 </p>
                 <div className="mt-4 pt-3 border-t border-navy-800 flex items-center gap-2 text-[11px] text-slate-400">
                   <CheckCircle2 className="w-3 h-3 text-rose-400" />
-                  <span>Phase 3 Deterministic risk scoring</span>
+                  <span>Deterministic risk scoring</span>
                 </div>
               </div>
 

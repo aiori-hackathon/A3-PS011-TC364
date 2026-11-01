@@ -45,6 +45,10 @@ class ScanRun(Base):
     targets_total = Column(Integer, default=0, nullable=False)
     targets_scanned = Column(Integer, default=0, nullable=False)
     assets_discovered_count = Column(Integer, default=0, nullable=False)
+    new_assets_count = Column(Integer, default=0, nullable=False)
+    updated_assets_count = Column(Integer, default=0, nullable=False)
+    failed_targets_count = Column(Integer, default=0, nullable=False)
+    total_assets_count = Column(Integer, default=0, nullable=False)
     findings_count = Column(Integer, default=0, nullable=False)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
@@ -135,7 +139,7 @@ class ScanFinding(Base):
     )
 
 
-# --- Phase 2: Asset Change Detection & Monitoring Models ---
+# --- Asset Change Detection & Monitoring Models ---
 
 class AssetSnapshot(Base):
     __tablename__ = "asset_snapshots"
@@ -189,7 +193,7 @@ class AssetChangeRecord(Base):
     )
 
 
-# --- Phase 5: Alerts, Notifications, Reports & Audit Trail Models ---
+# --- Alerts, Notifications, Reports & Audit Trail Models ---
 
 class NotificationRule(Base):
     __tablename__ = "notification_rules"
@@ -275,7 +279,7 @@ class AuditLog(Base):
     )
 
 
-# --- Phase 6: Automated & Scheduled Discovery Models ---
+# --- Automated & Scheduled Discovery Models ---
 
 class DiscoverySchedule(Base):
     __tablename__ = "discovery_schedules"

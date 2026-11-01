@@ -297,9 +297,9 @@ export const ScheduledDiscoveryView: React.FC<ScheduledDiscoveryViewProps> = ({
       <div className="flex items-start gap-3 p-4 rounded-xl border border-cyan-500/20 bg-cyan-950/20 text-cyan-200">
         <Clock className="w-5 h-5 shrink-0 text-cyan-400 mt-0.5" />
         <div className="text-sm space-y-1">
-          <div className="font-semibold text-cyan-300">Phase 6: Automated & Scheduled Discovery Active</div>
+          <div className="font-semibold text-cyan-300">Automated & Scheduled Discovery Active</div>
           <p className="text-cyan-200/80 leading-relaxed">
-            Recurring discovery scans run on automated intervals against authorised scopes. Each execution automatically takes an immutable Phase 2 baseline snapshot, detects asset additions/removals/attribute changes, executes Phase 3 explainable risk classifications, evaluates Phase 5 alert rules, and generates immutable audit trails.
+            Recurring discovery scans run on automated intervals against authorised scopes. Each execution automatically takes an immutable baseline snapshot, detects asset additions/removals/attribute changes, evaluates explainable risk classifications, applies alert rules, and generates immutable audit trails.
           </p>
         </div>
       </div>

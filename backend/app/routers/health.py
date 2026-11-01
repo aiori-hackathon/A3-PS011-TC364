@@ -9,7 +9,7 @@ def health_check():
     return {
         "status": "healthy",
         "service": settings.PROJECT_NAME,
-        "phase": "Phase 1 - Attack Surface Discovery & Initial Inventory",
+        "phase": "Attack Surface Discovery & Risk Intelligence",
         "timestamp": datetime.datetime.utcnow().isoformat(),
         "database": "sqlite_connected"
     }

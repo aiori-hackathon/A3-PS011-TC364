@@ -18,7 +18,8 @@ def get_stats_overview(db: Session = Depends(get_db)):
     total_scopes = db.query(Scope).count()
     total_assets = db.query(DiscoveredAsset).count()
     active_assets = db.query(DiscoveredAsset).filter(DiscoveredAsset.status == "ACTIVE").count()
-    unresponsive_assets = total_assets - active_assets
+    unresolved_assets = db.query(DiscoveredAsset).filter(DiscoveredAsset.status == "UNRESOLVED").count()
+    unresponsive_assets = total_assets - (active_assets + unresolved_assets)
     total_scans = db.query(ScanRun).count()
 
     last_scan_record = db.query(ScanRun).order_by(desc(ScanRun.started_at)).first()
@@ -34,11 +35,17 @@ def get_stats_overview(db: Session = Depends(get_db)):
             targets_total=last_scan_record.targets_total,
             targets_scanned=last_scan_record.targets_scanned,
             assets_discovered_count=last_scan_record.assets_discovered_count,
+            new_assets_count=last_scan_record.new_assets_count if last_scan_record.new_assets_count is not None else last_scan_record.assets_discovered_count,
+            updated_assets_count=last_scan_record.updated_assets_count or 0,
+            failed_targets_count=last_scan_record.failed_targets_count or 0,
+            total_assets_count=last_scan_record.total_assets_count or (last_scan_record.assets_discovered_count or 0),
             findings_count=last_scan_record.findings_count,
             started_at=last_scan_record.started_at,
             completed_at=last_scan_record.completed_at,
             error_message=last_scan_record.error_message,
-            logs=last_scan_record.logs or []
+            logs=last_scan_record.logs or [],
+            schedule_id=last_scan_record.schedule_id,
+            is_scheduled=last_scan_record.is_scheduled or False
         )
 
     # Asset types distribution
@@ -63,7 +70,7 @@ def get_stats_overview(db: Session = Depends(get_db)):
     findings = db.query(ScanFinding.finding_type).all()
     finding_counter = Counter([f[0] for f in findings])
 
-    # Phase 3: Findings by severity and status
+    # Findings by severity and status
     all_findings = db.query(ScanFinding.severity, ScanFinding.review_status).all()
     sev_counter = Counter()
     status_counter = Counter()
@@ -76,12 +83,12 @@ def get_stats_overview(db: Session = Depends(get_db)):
         sev_counter[sev] += 1
         status_counter[(st or "OPEN").upper()] += 1
 
-    # Phase 2: Changes summary
+    # Changes summary
     total_changes = db.query(AssetChangeRecord).count()
     change_types = db.query(AssetChangeRecord.change_type).all()
     change_counter = Counter([c[0] for c in change_types])
 
-    # Phase 4: Discovery activity timeline (recent 15 scans)
+    # Discovery activity timeline (recent 15 scans)
     recent_scans = db.query(ScanRun).order_by(desc(ScanRun.started_at)).limit(15).all()
     all_scopes = {s.id: s.name for s in db.query(Scope).all()}
     discovery_timeline = [
@@ -97,7 +104,7 @@ def get_stats_overview(db: Session = Depends(get_db)):
         for s in reversed(recent_scans)
     ]
 
-    # Phase 4: Asset changes over time (grouped chronologically by date)
+    # Asset changes over time (grouped chronologically by date)
     recent_changes = db.query(AssetChangeRecord).order_by(AssetChangeRecord.created_at.asc()).all()
     date_grouped_changes: Dict[str, Dict[str, int]] = {}
     for c in recent_changes:
@@ -122,6 +129,7 @@ def get_stats_overview(db: Session = Depends(get_db)):
         total_assets=total_assets,
         active_assets=active_assets,
         unresponsive_assets=unresponsive_assets,
+        unresolved_assets=unresolved_assets,
         total_scans=total_scans,
         last_scan=last_scan_out,
         asset_types_distribution=dict(type_counter),
@@ -180,11 +188,15 @@ def seed_demo_mode(db: Session = Depends(get_db)):
         targets_total=5,
         targets_scanned=5,
         assets_discovered_count=5,
+        new_assets_count=5,
+        updated_assets_count=0,
+        failed_targets_count=0,
+        total_assets_count=5,
         findings_count=16,
         started_at=now - timedelta(minutes=12),
         completed_at=now - timedelta(minutes=10),
         logs=[
-            {"timestamp": (now - timedelta(minutes=12)).strftime("%H:%M:%S"), "level": "INFO", "message": "Initiating ArgusTrace Phase 1 Discovery Run for Scope: '[DEMO / SYNTHETIC]'"},
+            {"timestamp": (now - timedelta(minutes=12)).strftime("%H:%M:%S"), "level": "INFO", "message": "Initiating ArgusTrace Discovery Run for Scope: '[DEMO / SYNTHETIC]'"},
             {"timestamp": (now - timedelta(minutes=12)).strftime("%H:%M:%S"), "level": "INFO", "message": "Authorised by: Security Architect | Local Lab Mode: True"},
             {"timestamp": (now - timedelta(minutes=11)).strftime("%H:%M:%S"), "level": "INFO", "message": "Processing target: portal.demo-corp.internal"},
             {"timestamp": (now - timedelta(minutes=11)).strftime("%H:%M:%S"), "level": "SUCCESS", "message": "DNS Resolved A -> 192.168.10.10, AAAA -> 2001:db8::10"},
@@ -209,7 +221,7 @@ def seed_demo_mode(db: Session = Depends(get_db)):
                 {"port": 80, "service": "HTTP", "latency_ms": 14.2, "status": "OPEN"},
                 {"port": 443, "service": "HTTPS", "latency_ms": 18.5, "status": "OPEN"}
             ],
-            "dns": {"A": ["192.168.10.10"], "AAAA": ["2001:db8::10"], "CNAME": [], "MX": [], "NS": [], "TXT": ["v=spf1 include:_spf.demo-corp.internal ~all"]},
+            "dns": {"A": ["192.168.10.10"], "AAAA": ["2001:db8::10"], "CNAME": [], "MX": [], "NS": [], "TXT": ["v=spf1 include:_spf.demo-corp.internal ~all"], "is_synthetic_demo": True},
             "http": {
                 "reachable": True,
                 "status_code": 200,
@@ -245,7 +257,7 @@ def seed_demo_mode(db: Session = Depends(get_db)):
                 {"port": 443, "service": "HTTPS", "latency_ms": 12.1, "status": "OPEN"},
                 {"port": 8443, "service": "HTTPS-Alt", "latency_ms": 15.3, "status": "OPEN"}
             ],
-            "dns": {"A": ["192.168.10.20"], "AAAA": [], "CNAME": [], "MX": [], "NS": [], "TXT": []},
+            "dns": {"A": ["192.168.10.20"], "AAAA": [], "CNAME": [], "MX": [], "NS": [], "TXT": [], "is_synthetic_demo": True},
             "http": {
                 "reachable": True,
                 "status_code": 200,
@@ -281,7 +293,7 @@ def seed_demo_mode(db: Session = Depends(get_db)):
                 {"port": 443, "service": "HTTPS", "latency_ms": 22.4, "status": "OPEN"},
                 {"port": 22, "service": "SSH", "latency_ms": 19.8, "status": "OPEN", "banner": "SSH-2.0-OpenSSH_9.3p1"}
             ],
-            "dns": {"A": ["192.168.10.30"], "AAAA": [], "CNAME": [], "MX": [], "NS": [], "TXT": []},
+            "dns": {"A": ["192.168.10.30"], "AAAA": [], "CNAME": [], "MX": [], "NS": [], "TXT": [], "is_synthetic_demo": True},
             "http": {
                 "reachable": True,
                 "status_code": 403,
@@ -317,7 +329,7 @@ def seed_demo_mode(db: Session = Depends(get_db)):
                 {"port": 25, "service": "SMTP", "latency_ms": 31.0, "status": "OPEN", "banner": "220 mail.demo-corp.internal ESMTP Postfix"},
                 {"port": 587, "service": "Submission", "latency_ms": 29.5, "status": "OPEN"}
             ],
-            "dns": {"A": ["192.168.10.40"], "AAAA": [], "CNAME": [], "MX": ["10 mail.demo-corp.internal"], "NS": [], "TXT": []},
+            "dns": {"A": ["192.168.10.40"], "AAAA": [], "CNAME": [], "MX": ["10 mail.demo-corp.internal"], "NS": [], "TXT": [], "is_synthetic_demo": True},
             "http": {},
             "tls": {}
         },
@@ -329,7 +341,7 @@ def seed_demo_mode(db: Session = Depends(get_db)):
             "ports": [
                 {"port": 22, "service": "SSH", "latency_ms": 11.2, "status": "OPEN", "banner": "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.6"}
             ],
-            "dns": {"PTR": ["jumpbox.demo-corp.internal"]},
+            "dns": {"PTR": ["jumpbox.demo-corp.internal"], "is_synthetic_demo": True},
             "http": {},
             "tls": {}
         }
@@ -353,7 +365,7 @@ def seed_demo_mode(db: Session = Depends(get_db)):
         db.add(asset)
         db.flush()
 
-        # Phase 3: Evaluate explainable risk classification and persist deduplicated findings
+        # Evaluate explainable risk classification and persist deduplicated findings
         evaluate_and_persist_findings(db, demo_scan.id, demo_scope.id, asset)
 
     db.commit()

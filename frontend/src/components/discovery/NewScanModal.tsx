@@ -33,14 +33,18 @@ export const NewScanModal: React.FC<NewScanModalProps> = ({
   const [enableHttp, setEnableHttp] = useState(true);
   const [enableTls, setEnableTls] = useState(true);
 
-  // Sync selected scope when modal opens or initialScopeId changes
+  // Sync selected scope when modal opens or scopes change, preventing stale scope IDs
   React.useEffect(() => {
-    if (initialScopeId) {
-      setSelectedScopeId(initialScopeId);
-    } else if (!selectedScopeId && scopes.length > 0) {
-      setSelectedScopeId(scopes[0].id);
+    if (!isOpen) {
+      setErrorMessage(null);
+      return;
     }
-  }, [initialScopeId, isOpen, scopes]);
+    if (initialScopeId && scopes.some((s) => s.id === initialScopeId)) {
+      setSelectedScopeId(initialScopeId);
+    } else if (!scopes.some((s) => s.id === selectedScopeId)) {
+      setSelectedScopeId(scopes[0]?.id || '');
+    }
+  }, [initialScopeId, isOpen, scopes, selectedScopeId]);
 
   // Port presets
   const [portPreset, setPortPreset] = useState<'web' | 'standard' | 'extended' | 'custom'>('standard');
@@ -60,6 +64,17 @@ export const NewScanModal: React.FC<NewScanModalProps> = ({
 
     if (!selectedScopeId) {
       setErrorMessage('Please select a target scope.');
+      return;
+    }
+
+    const targetScope = scopes.find((s) => s.id === selectedScopeId);
+    if (!targetScope) {
+      setErrorMessage('The selected scope no longer exists. Please refresh and select an active scope.');
+      return;
+    }
+
+    if (!targetScope.authorised_confirmation) {
+      setErrorMessage('Cannot launch discovery scan: Selected scope has not been confirmed as authorised.');
       return;
     }
 
@@ -120,6 +135,7 @@ export const NewScanModal: React.FC<NewScanModalProps> = ({
             variant="primary"
             size="sm"
             onClick={handleSubmit}
+            disabled={scopes.length === 0 || !selectedScopeId || isSubmitting}
             loading={isSubmitting}
             icon={<Play className="w-3.5 h-3.5 fill-current" />}
           >
@@ -136,6 +152,18 @@ export const NewScanModal: React.FC<NewScanModalProps> = ({
           </div>
         )}
 
+        {scopes.length === 0 && (
+          <div className="p-3.5 rounded-lg bg-navy-900 border border-amber-500/40 text-amber-300 text-xs flex items-start gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <div className="font-semibold text-slate-200">No Target Scopes Available</div>
+              <p className="mt-0.5 text-slate-400">
+                Please create and authorize an attack surface scope before launching a discovery run.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Scope Selector */}
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-slate-300 uppercase font-mono">
@@ -144,13 +172,18 @@ export const NewScanModal: React.FC<NewScanModalProps> = ({
           <select
             value={selectedScopeId}
             onChange={(e) => setSelectedScopeId(e.target.value)}
-            className="w-full bg-navy-900 border border-navy-700 text-slate-200 text-xs rounded-lg p-2.5 focus:outline-none focus:border-cyan-500"
+            disabled={scopes.length === 0}
+            className="w-full bg-navy-900 border border-navy-700 text-slate-200 text-xs rounded-lg p-2.5 focus:outline-none focus:border-cyan-500 disabled:opacity-50"
           >
-            {scopes.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name} ({s.targets.length} targets) {s.allow_local_lab ? '• Local Lab' : ''}
-              </option>
-            ))}
+            {scopes.length === 0 ? (
+              <option value="">No scopes configured</option>
+            ) : (
+              scopes.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} ({s.targets.length} targets) {s.allow_local_lab ? '• Local Lab' : ''}
+                </option>
+              ))
+            )}
           </select>
           {selectedScope && (
             <div className="text-[11px] text-slate-400 font-mono mt-1">

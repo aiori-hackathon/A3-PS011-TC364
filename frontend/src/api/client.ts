@@ -21,8 +21,9 @@ import type {
   ScheduleUpdatePayload,
 } from './types';
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)
-  ? `${(import.meta.env.VITE_API_URL as string).replace(/\/$/, '')}/api`
+const rawApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+const API_BASE = rawApiUrl
+  ? (rawApiUrl.endsWith('/api') ? rawApiUrl.replace(/\/+$/, '') : `${rawApiUrl.replace(/\/+$/, '')}/api`)
   : '/api';
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
@@ -117,7 +118,7 @@ export const api = {
       method: 'DELETE',
     }),
 
-  // Phase 2: Changes & Snapshots
+  // Changes & Snapshots
   getChanges: (params?: {
     scope_id?: string;
     change_type?: string;
@@ -141,7 +142,7 @@ export const api = {
     request<AssetSnapshot[]>(scopeId ? `/snapshots?scope_id=${encodeURIComponent(scopeId)}` : '/snapshots'),
   getSnapshot: (id: string) => request<AssetSnapshot>(`/snapshots/${id}`),
 
-  // Phase 3: Findings & Risk Classification
+  // Findings & Risk Classification
   getFindings: (params?: {
     scope_id?: string;
     asset_id?: string;
@@ -186,7 +187,7 @@ export const api = {
       method: 'POST',
     }),
 
-  // Phase 5: Notifications & Alerts
+  // Notifications & Alerts
   getIntegrationStatus: () => request<IntegrationStatus>('/notifications/integrations/status'),
   getNotificationRules: (params?: { scope_id?: string; event_type?: string; enabled_only?: boolean }) => {
     const searchParams = new URLSearchParams();
@@ -224,7 +225,7 @@ export const api = {
       method: 'POST',
     }),
 
-  // Phase 5: Audit Trail
+  // Audit Trail
   getAuditLogs: (params?: { action?: string; entity_type?: string; search?: string; limit?: number; offset?: number }) => {
     const searchParams = new URLSearchParams();
     if (params?.action) searchParams.append('action', params.action);
@@ -237,7 +238,7 @@ export const api = {
   },
   getAuditSummary: () => request<AuditSummary>('/audit/summary'),
 
-  // Phase 5: Reports & Data Exports
+  // Reports & Data Exports
   getExportUrl: (resource: 'inventory' | 'changes' | 'findings', format: 'csv' | 'json', params?: Record<string, string>) => {
     const searchParams = new URLSearchParams();
     if (params) {
@@ -249,7 +250,7 @@ export const api = {
     return `${API_BASE}/exports/${resource}/${format}${query ? `?${query}` : ''}`;
   },
 
-  // Phase 6: Automated & Scheduled Discovery
+  // Automated & Scheduled Discovery
   getSchedules: (params?: { scope_id?: string }) => {
     const searchParams = new URLSearchParams();
     if (params?.scope_id) searchParams.append('scope_id', params.scope_id);

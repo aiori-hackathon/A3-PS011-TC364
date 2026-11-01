@@ -74,7 +74,7 @@ const mockExecutions: ScanRun[] = [
   },
 ];
 
-describe('Phase 6 ScheduledDiscoveryView Component', () => {
+describe('ScheduledDiscoveryView Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(api, 'getSchedules').mockResolvedValue(mockSchedules);

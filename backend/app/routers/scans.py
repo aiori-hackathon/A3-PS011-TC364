@@ -32,6 +32,10 @@ def list_scans(scope_id: Optional[str] = None, db: Session = Depends(get_db)):
             targets_total=s.targets_total,
             targets_scanned=s.targets_scanned,
             assets_discovered_count=s.assets_discovered_count,
+            new_assets_count=s.new_assets_count if s.new_assets_count is not None else s.assets_discovered_count,
+            updated_assets_count=s.updated_assets_count or 0,
+            failed_targets_count=s.failed_targets_count or 0,
+            total_assets_count=s.total_assets_count or (s.assets_discovered_count or 0),
             findings_count=s.findings_count,
             started_at=s.started_at,
             completed_at=s.completed_at,
@@ -46,7 +50,10 @@ def list_scans(scope_id: Optional[str] = None, db: Session = Depends(get_db)):
 async def launch_discovery_run(payload: ScanCreate, db: Session = Depends(get_db)):
     scope = db.query(Scope).filter(Scope.id == payload.scope_id).first()
     if not scope:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Specified scope does not exist.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Specified scope does not exist or has been removed."
+        )
 
     if not scope.authorised_confirmation:
         raise HTTPException(
@@ -84,6 +91,10 @@ async def launch_discovery_run(payload: ScanCreate, db: Session = Depends(get_db
         targets_total=len(scope.targets),
         targets_scanned=0,
         assets_discovered_count=0,
+        new_assets_count=0,
+        updated_assets_count=0,
+        failed_targets_count=0,
+        total_assets_count=0,
         findings_count=0,
         logs=[]
     )
@@ -103,6 +114,10 @@ async def launch_discovery_run(payload: ScanCreate, db: Session = Depends(get_db
         targets_total=new_scan.targets_total,
         targets_scanned=new_scan.targets_scanned,
         assets_discovered_count=new_scan.assets_discovered_count,
+        new_assets_count=0,
+        updated_assets_count=0,
+        failed_targets_count=0,
+        total_assets_count=0,
         findings_count=new_scan.findings_count,
         started_at=new_scan.started_at,
         completed_at=new_scan.completed_at,
@@ -128,6 +143,10 @@ def get_scan(scan_id: str, db: Session = Depends(get_db)):
         targets_total=scan.targets_total,
         targets_scanned=scan.targets_scanned,
         assets_discovered_count=scan.assets_discovered_count,
+        new_assets_count=scan.new_assets_count if scan.new_assets_count is not None else scan.assets_discovered_count,
+        updated_assets_count=scan.updated_assets_count or 0,
+        failed_targets_count=scan.failed_targets_count or 0,
+        total_assets_count=scan.total_assets_count or (scan.assets_discovered_count or 0),
         findings_count=scan.findings_count,
         started_at=scan.started_at,
         completed_at=scan.completed_at,

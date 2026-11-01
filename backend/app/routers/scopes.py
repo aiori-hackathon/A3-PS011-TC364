@@ -111,7 +111,7 @@ def create_scope(payload: ScopeCreate, db: Session = Depends(get_db)):
 def get_scope(scope_id: str, db: Session = Depends(get_db)):
     scope = db.query(Scope).filter(Scope.id == scope_id).first()
     if not scope:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scope not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Specified scope does not exist or has been removed.")
 
     asset_count = db.query(DiscoveredAsset).filter(DiscoveredAsset.scope_id == scope.id).count()
     last_scan = db.query(ScanRun).filter(ScanRun.scope_id == scope.id).order_by(desc(ScanRun.started_at)).first()
@@ -135,7 +135,7 @@ def get_scope(scope_id: str, db: Session = Depends(get_db)):
 def update_scope(scope_id: str, payload: ScopeUpdate, db: Session = Depends(get_db)):
     scope = db.query(Scope).filter(Scope.id == scope_id).first()
     if not scope:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scope not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Specified scope does not exist or has been removed.")
 
     if payload.name is not None:
         scope.name = payload.name
@@ -186,7 +186,7 @@ def update_scope(scope_id: str, payload: ScopeUpdate, db: Session = Depends(get_
 def delete_scope(scope_id: str, db: Session = Depends(get_db)):
     scope = db.query(Scope).filter(Scope.id == scope_id).first()
     if not scope:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scope not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Specified scope does not exist or has been removed.")
 
     db.delete(scope)
     db.commit()

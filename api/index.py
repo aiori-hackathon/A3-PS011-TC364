@@ -12,7 +12,11 @@ if backend_dir not in sys.path:
 if root_dir not in sys.path:
     sys.path.insert(0, root_dir)
 
-# Ensure SQLite database uses writable temp directory on Vercel serverless environment
+# Normalize postgres:// to postgresql:// if set in Vercel environment
+if os.environ.get("DATABASE_URL") and os.environ["DATABASE_URL"].startswith("postgres://"):
+    os.environ["DATABASE_URL"] = os.environ["DATABASE_URL"].replace("postgres://", "postgresql://", 1)
+
+# Ensure SQLite database uses writable temp directory on Vercel serverless environment if no DATABASE_URL provided
 if os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME"):
     tmp_dir = tempfile.gettempdir().replace("\\", "/")
     os.environ.setdefault("DATABASE_URL", f"sqlite:///{tmp_dir}/argustrace.db")

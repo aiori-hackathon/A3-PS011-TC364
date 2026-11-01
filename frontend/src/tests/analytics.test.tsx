@@ -178,7 +178,7 @@ describe('SecurityAnalytics Component', () => {
 });
 
 describe('AssetDetailDrawer Component', () => {
-  it('renders asset details, open ports, DNS, HTTP, and linked findings with Phase 3 attributes', () => {
+  it('renders asset details, open ports, DNS, HTTP, and linked findings', () => {
     const handleClose = vi.fn();
     render(
       <AssetDetailDrawer
