@@ -52,6 +52,9 @@ def get_schedule(schedule_id: str, db: Session = Depends(get_db)):
 @router.post("", response_model=ScheduleOut, status_code=status.HTTP_201_CREATED)
 def create_schedule(payload: ScheduleCreate, db: Session = Depends(get_db)):
     scope = db.query(Scope).filter(Scope.id == payload.scope_id).first()
+    if not scope and payload.scope_id == CANONICAL_DEMO_SCOPE_ID:
+        from .stats import get_or_create_demo_scope
+        scope = get_or_create_demo_scope(db)
     if not scope:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Specified target scope does not exist.")
 
