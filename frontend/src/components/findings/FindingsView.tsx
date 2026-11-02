@@ -468,7 +468,7 @@ export const FindingsView: React.FC<FindingsViewProps> = ({ scopes, onInspectAss
             {sortedFindings.length !== findings.length && ' (filtered)'}
           </span>
           <span className="font-mono text-[11px] text-slate-500">
-            Phase 4 Risk Triage & Review
+            Risk Intelligence Triage & Review
           </span>
         </div>
       </Card>

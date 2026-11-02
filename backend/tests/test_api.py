@@ -5,7 +5,7 @@ def test_health_check(client):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert "Phase 1" in data["phase"]
+    assert "phase" in data and ("Attack Surface" in data["phase"] or "Phase 1" in data["phase"])
 
 def test_target_validation_endpoint(client):
     payload = {

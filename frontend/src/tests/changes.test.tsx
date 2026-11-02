@@ -63,7 +63,7 @@ const mockSnapshots: AssetSnapshot[] = [
   }
 ];
 
-describe('Phase 2 ChangesView Component', () => {
+describe('ChangesView Component', () => {
   beforeEach(() => {
     vi.spyOn(api, 'getChanges').mockResolvedValue(mockChanges);
     vi.spyOn(api, 'getSnapshots').mockResolvedValue(mockSnapshots);

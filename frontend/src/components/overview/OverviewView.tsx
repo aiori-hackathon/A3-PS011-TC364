@@ -60,7 +60,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <div className="space-y-2 max-w-2xl">
               <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-mono">
                 <Sparkles className="w-3.5 h-3.5" />
-                Phase 1 Prototype Initialized
+                Attack Surface Discovery Ready
               </div>
               <h2 className="text-xl font-bold text-slate-100">
                 Welcome to ArgusTrace: Authorized Asset Discovery
@@ -137,9 +137,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <span className="text-xs text-slate-400">in inventory</span>
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-navy-750 pt-2.5">
-            <span>Active / Unresponsive</span>
-            <span className="font-mono text-slate-300">
-              <span className="text-emerald-400 font-semibold">{activeAssets}</span> / {unresponsiveAssets}
+            <span>Status Breakdown</span>
+            <span className="font-mono text-slate-300 text-[11px]">
+              <span className="text-emerald-400 font-semibold">{activeAssets} active</span>
+              {Boolean(stats?.unresolved_assets) && (
+                <> • <span className="text-rose-400 font-semibold">{stats?.unresolved_assets} unresolved</span></>
+              )}
             </span>
           </div>
         </Card>
@@ -209,7 +212,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
         </Card>
 
-        {/* Metric 5: Phase 2 Baseline Changes */}
+        {/* Metric 5: Baseline Changes */}
         <Card
           hover
           className="relative overflow-hidden group cursor-pointer"
@@ -230,7 +233,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <span className="text-xs text-slate-400">detected</span>
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-slate-500 border-t border-navy-750 pt-2.5">
-            <span>Phase 2 Monitoring</span>
+            <span>Continuous Monitoring</span>
             <span className="text-cyan-400 font-mono font-medium flex items-center gap-1 text-[11px]">
               View History <ArrowRight className="w-3 h-3" />
             </span>
@@ -238,7 +241,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </Card>
       </div>
 
-      {/* Phase 4 Advanced Security Analytics Deck */}
+      {/* Security Analytics Deck */}
       <SecurityAnalytics stats={stats} onNavigateTab={onNavigate} />
 
       {/* Visual Data Breakdown derived strictly from stored database */}
@@ -250,7 +253,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               <Layers className="w-4 h-4 text-cyan-400" />
               <h3 className="text-sm font-semibold text-slate-200">Asset Categories</h3>
             </div>
-            <span className="text-xs text-slate-500 font-mono">Phase 1 Inventory</span>
+            <span className="text-xs text-slate-500 font-mono">Asset Inventory</span>
           </div>
 
           {totalAssets === 0 ? (
@@ -340,7 +343,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               <ShieldAlert className="w-4 h-4 text-cyan-400" />
               <h3 className="text-sm font-semibold text-slate-200">Risk & Findings Posture</h3>
             </div>
-            <span className="text-xs text-slate-500 font-mono">Phase 3</span>
+            <span className="text-xs text-slate-500 font-mono">Risk Engine</span>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

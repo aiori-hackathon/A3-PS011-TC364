@@ -51,6 +51,10 @@ export interface ScanRun {
   targets_total: number;
   targets_scanned: number;
   assets_discovered_count: number;
+  new_assets_count?: number;
+  updated_assets_count?: number;
+  failed_targets_count?: number;
+  total_assets_count?: number;
   findings_count: number;
   started_at?: string | null;
   completed_at?: string | null;
@@ -81,6 +85,10 @@ export interface DnsRecords {
   TXT?: string[];
   PTR?: string[];
   error?: string | null;
+  is_synthetic_demo?: boolean;
+  current_resolution_failed?: boolean;
+  last_resolution_error?: string | null;
+  historical_preserved?: boolean;
 }
 
 export interface HttpSummary {
@@ -209,6 +217,7 @@ export interface StatsOverview {
   total_assets: number;
   active_assets: number;
   unresponsive_assets: number;
+  unresolved_assets?: number;
   total_scans: number;
   last_scan?: ScanRun | null;
   asset_types_distribution: Record<string, number>;
@@ -268,7 +277,7 @@ export interface AssetChangeRecord {
   created_at: string;
 }
 
-// --- Phase 5: Notifications, Reports, Exports & Audit Trail ---
+// --- Notifications, Reports, Exports & Audit Trail ---
 
 export interface NotificationRule {
   id: string;
@@ -355,7 +364,7 @@ export interface IntegrationStatus {
   };
 }
 
-// --- Phase 6: Automated & Scheduled Discovery Types ---
+// --- Automated & Scheduled Discovery Types ---
 
 export type ScheduleFrequency = 'DAILY' | 'WEEKLY' | 'HOURLY_6' | 'HOURLY_12' | 'CUSTOM';
 

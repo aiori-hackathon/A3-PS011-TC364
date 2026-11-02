@@ -183,7 +183,7 @@ export const App: React.FC = () => {
   const titles: Record<NavTab, { title: string; subtitle: string }> = {
     overview: {
       title: 'Attack Surface Overview',
-      subtitle: 'Phase 1 inventory posture, live scan metrics, and service breakdowns',
+      subtitle: 'Unified inventory posture, live scan metrics, and service breakdowns',
     },
     inventory: {
       title: 'Discovered Asset Inventory',
@@ -191,7 +191,7 @@ export const App: React.FC = () => {
     },
     changes: {
       title: 'Asset Change History & Baseline Monitoring',
-      subtitle: 'Phase 2 detected additions, removals, service state shifts, and TLS certificate updates',
+      subtitle: 'Detected additions, removals, service state shifts, and TLS certificate updates',
     },
     findings: {
       title: 'Findings & Explainable Risk Classification',
@@ -203,7 +203,7 @@ export const App: React.FC = () => {
     },
     schedules: {
       title: 'Automated & Scheduled Discovery',
-      subtitle: 'Phase 6 recurring scans, automated baseline comparison, and continuous attack-surface monitoring',
+      subtitle: 'Recurring scans, automated baseline comparison, and continuous attack-surface monitoring',
     },
     scopes: {
       title: 'Authorised Scope Settings',
@@ -211,7 +211,7 @@ export const App: React.FC = () => {
     },
     reports: {
       title: 'Alerts, Notifications & Audit Telemetry',
-      subtitle: 'Phase 5 configurable alert rules, bounded delivery, sanitized reports, and audit trail',
+      subtitle: 'Configurable alert rules, bounded delivery, sanitized reports, and audit trail',
     },
   };
 

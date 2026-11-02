@@ -24,137 +24,6 @@ from ..services.notification_service import (
 # Thread-safe cancellation set
 CANCELLED_SCANS: Set[str] = set()
 
-SYNTHETIC_TARGET_PROFILES: Dict[str, Any] = {
-    "portal.demo-corp.internal": {
-        "type": "subdomain",
-        "ip": "192.168.10.10",
-        "status": "ACTIVE",
-        "ports": [
-            {"port": 80, "service": "HTTP", "latency_ms": 14.2, "status": "OPEN"},
-            {"port": 443, "service": "HTTPS", "latency_ms": 18.5, "status": "OPEN"}
-        ],
-        "dns": {"A": ["192.168.10.10"], "AAAA": ["2001:db8::10"], "CNAME": [], "MX": [], "NS": [], "TXT": ["v=spf1 include:_spf.demo-corp.internal ~all"]},
-        "http": {
-            "reachable": True,
-            "status_code": 200,
-            "scheme": "https",
-            "port": 443,
-            "server": "nginx/1.24.0",
-            "title": "Demo Corporate SSO Portal",
-            "latency_ms": 18.5,
-            "content_type": "text/html; charset=UTF-8",
-            "redirect_count": 1,
-            "headers": {"Server": "nginx/1.24.0", "Strict-Transport-Security": "max-age=31536000; includeSubDomains"}
-        },
-        "tls": {
-            "has_tls": True,
-            "port": 443,
-            "subject_cn": "*.demo-corp.internal",
-            "issuer_cn": "DigiCert Global G2 TLS RSA SHA256 2020 CA1",
-            "valid_from": (datetime.datetime.utcnow() - datetime.timedelta(days=281)).isoformat(),
-            "valid_to": (datetime.datetime.utcnow() + datetime.timedelta(days=84)).isoformat(),
-            "days_remaining": 84,
-            "is_expired": False,
-            "sans": ["*.demo-corp.internal", "demo-corp.internal"],
-            "tls_version": "TLSv1.3",
-            "cipher": "TLS_AES_256_GCM_SHA384"
-        }
-    },
-    "api.demo-corp.internal": {
-        "type": "subdomain",
-        "ip": "192.168.10.20",
-        "status": "ACTIVE",
-        "ports": [
-            {"port": 443, "service": "HTTPS", "latency_ms": 12.1, "status": "OPEN"},
-            {"port": 8443, "service": "HTTPS-Alt", "latency_ms": 15.3, "status": "OPEN"}
-        ],
-        "dns": {"A": ["192.168.10.20"], "AAAA": [], "CNAME": [], "MX": [], "NS": [], "TXT": []},
-        "http": {
-            "reachable": True,
-            "status_code": 200,
-            "scheme": "https",
-            "port": 443,
-            "server": "envoy/1.28.0",
-            "title": "API Gateway Health Check",
-            "latency_ms": 12.1,
-            "content_type": "application/json",
-            "redirect_count": 0,
-            "headers": {"Server": "envoy/1.28.0", "Content-Type": "application/json"}
-        },
-        "tls": {
-            "has_tls": True,
-            "port": 443,
-            "subject_cn": "api.demo-corp.internal",
-            "issuer_cn": "Let's Encrypt Authority X3",
-            "valid_from": (datetime.datetime.utcnow() - datetime.timedelta(days=70)).isoformat(),
-            "valid_to": (datetime.datetime.utcnow() + datetime.timedelta(days=20)).isoformat(),
-            "days_remaining": 20,
-            "is_expired": False,
-            "sans": ["api.demo-corp.internal"],
-            "tls_version": "TLSv1.3",
-            "cipher": "TLS_CHACHA20_POLY1305_SHA256"
-        }
-    },
-    "vpn.demo-corp.internal": {
-        "type": "subdomain",
-        "ip": "192.168.10.30",
-        "status": "ACTIVE",
-        "ports": [
-            {"port": 443, "service": "HTTPS", "latency_ms": 22.4, "status": "OPEN"},
-            {"port": 22, "service": "SSH", "latency_ms": 19.8, "status": "OPEN", "banner": "SSH-2.0-OpenSSH_9.3p1"}
-        ],
-        "dns": {"A": ["192.168.10.30"], "AAAA": [], "CNAME": [], "MX": [], "NS": [], "TXT": []},
-        "http": {
-            "reachable": True,
-            "status_code": 403,
-            "scheme": "https",
-            "port": 443,
-            "server": "Apache/2.4.58",
-            "title": "403 Forbidden - VPN Gateway",
-            "latency_ms": 22.4,
-            "content_type": "text/html",
-            "redirect_count": 0,
-            "headers": {"Server": "Apache/2.4.58"}
-        },
-        "tls": {
-            "has_tls": True,
-            "port": 443,
-            "subject_cn": "vpn.demo-corp.internal",
-            "issuer_cn": "DigiCert Global Root CA",
-            "valid_from": (datetime.datetime.utcnow() - datetime.timedelta(days=350)).isoformat(),
-            "valid_to": (datetime.datetime.utcnow() + datetime.timedelta(days=15)).isoformat(),
-            "days_remaining": 15,
-            "is_expired": False,
-            "sans": ["vpn.demo-corp.internal"],
-            "tls_version": "TLSv1.2",
-            "cipher": "ECDHE-RSA-AES256-GCM-SHA384"
-        }
-    },
-    "mail.demo-corp.internal": {
-        "type": "subdomain",
-        "ip": "192.168.10.40",
-        "status": "ACTIVE",
-        "ports": [
-            {"port": 25, "service": "SMTP", "latency_ms": 31.0, "status": "OPEN", "banner": "220 mail.demo-corp.internal ESMTP Postfix"},
-            {"port": 587, "service": "Submission", "latency_ms": 29.5, "status": "OPEN"}
-        ],
-        "dns": {"A": ["192.168.10.40"], "AAAA": [], "CNAME": [], "MX": ["10 mail.demo-corp.internal"], "NS": [], "TXT": []},
-        "http": {},
-        "tls": {}
-    },
-    "192.168.10.45": {
-        "type": "ipv4",
-        "ip": "192.168.10.45",
-        "status": "ACTIVE",
-        "ports": [
-            {"port": 22, "service": "SSH", "latency_ms": 11.2, "status": "OPEN", "banner": "SSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.6"}
-        ],
-        "dns": {"PTR": ["jumpbox.demo-corp.internal"]},
-        "http": {},
-        "tls": {}
-    }
-}
-
 def cancel_scan(scan_id: str) -> bool:
     CANCELLED_SCANS.add(scan_id)
     return True
@@ -168,7 +37,7 @@ def add_log_entry(logs: List[Dict[str, str]], message: str, level: str = "INFO")
 
 async def execute_discovery_run(scan_id: str):
     """
-    Background executor for an authorized attack surface discovery run (Phase 1).
+    Background executor for an authorized attack surface discovery run.
     """
     db: Session = database.SessionLocal()
     try:
@@ -195,7 +64,7 @@ async def execute_discovery_run(scan_id: str):
         scan.status = "IN_PROGRESS"
         scan.started_at = datetime.datetime.utcnow()
         logs: List[Dict[str, str]] = list(scan.logs or [])
-        add_log_entry(logs, f"Initiating ArgusTrace Phase 1 Discovery Run for Scope: '{scope.name}'")
+        add_log_entry(logs, f"Initiating ArgusTrace Discovery Run for Scope: '{scope.name}'")
         add_log_entry(logs, f"Authorised by: {scope.authorised_by} | Local Lab Mode: {scope.allow_local_lab}")
         
         scan.logs = logs
@@ -223,7 +92,9 @@ async def execute_discovery_run(scan_id: str):
         db.commit()
 
         targets_scanned = 0
-        assets_discovered = 0
+        new_assets = 0
+        updated_assets = 0
+        failed_targets = 0
         findings_count = 0
 
         add_log_entry(logs, f"Loaded {len(raw_targets)} targets for validation & discovery")
@@ -234,6 +105,13 @@ async def execute_discovery_run(scan_id: str):
                 add_log_entry(logs, "Scan cancellation requested by user. Terminating discovery run gracefully.", "WARN")
                 scan.status = "CANCELLED"
                 scan.completed_at = datetime.datetime.utcnow()
+                scan.targets_scanned = targets_scanned
+                scan.assets_discovered_count = new_assets
+                scan.new_assets_count = new_assets
+                scan.updated_assets_count = updated_assets
+                scan.failed_targets_count = failed_targets
+                scan.total_assets_count = db.query(DiscoveredAsset).filter(DiscoveredAsset.scope_id == scope.id).count()
+                scan.findings_count = findings_count
                 scan.logs = logs
                 db.commit()
                 log_audit_event(
@@ -242,7 +120,12 @@ async def execute_discovery_run(scan_id: str):
                     entity_type="scan_run",
                     entity_id=scan.id,
                     actor=scope.authorised_by,
-                    details={"targets_scanned": targets_scanned, "scope_name": scope.name}
+                    details={
+                        "targets_scanned": targets_scanned,
+                        "new_assets": new_assets,
+                        "updated_assets": updated_assets,
+                        "scope_name": scope.name
+                    }
                 )
                 return
 
@@ -251,162 +134,231 @@ async def execute_discovery_run(scan_id: str):
             if not is_valid:
                 add_log_entry(logs, f"Target '{target_str}' skipped: {error_msg}", "WARN")
                 targets_scanned += 1
+                failed_targets += 1
                 scan.targets_scanned = targets_scanned
+                scan.failed_targets_count = failed_targets
                 scan.logs = logs
                 db.commit()
                 continue
 
             add_log_entry(logs, f"Processing target: {sanitized_target}")
 
-            # Check if this target has a synthetic demonstration profile
-            synth_profile = SYNTHETIC_TARGET_PROFILES.get(sanitized_target)
-            if not synth_profile and (sanitized_target.endswith(".demo-corp.internal") or "[DEMO" in scope.name.upper() or "DEMO LAB" in scope.name.upper()):
-                synth_profile = {
-                    "type": "subdomain" if sanitized_target.count(".") > 1 else "domain",
-                    "ip": "192.168.10.50",
-                    "status": "ACTIVE",
-                    "ports": [{"port": 80, "service": "HTTP", "latency_ms": 15.0, "status": "OPEN"}, {"port": 443, "service": "HTTPS", "latency_ms": 18.0, "status": "OPEN"}],
-                    "dns": {"A": ["192.168.10.50"], "AAAA": [], "CNAME": [], "MX": [], "NS": [], "TXT": []},
-                    "http": {"reachable": True, "status_code": 200, "scheme": "https", "port": 443, "server": "nginx", "title": f"Demo Service - {sanitized_target}"},
-                    "tls": {"has_tls": True, "port": 443, "subject_cn": sanitized_target, "issuer_cn": "Demo Authority CA", "days_remaining": 60, "is_expired": False}
-                }
+            # 1. DNS Resolution Probe
+            dns_results = {}
+            primary_ip = None
+            is_target_ip = bool(is_ip_address(sanitized_target))
 
-            if synth_profile:
-                # Deterministic synthetic discovery simulation for authorized demonstration targets
-                dns_results = synth_profile.get("dns", {})
-                primary_ip = synth_profile.get("ip")
-                open_ports = synth_profile.get("ports", [])
-                http_summary = synth_profile.get("http", {})
-                tls_summary = synth_profile.get("tls", {})
-                asset_type = synth_profile.get("type", "subdomain")
-                is_active = True
-                asset_status = "ACTIVE"
-
+            if is_target_ip:
+                primary_ip = sanitized_target
                 if enable_dns:
-                    add_log_entry(logs, f"[{sanitized_target}] Querying DNS records (A, AAAA, CNAME, MX, NS, TXT, PTR)...")
-                    if dns_results.get("A"):
-                        add_log_entry(logs, f"[{sanitized_target}] DNS Resolved A -> {', '.join(dns_results['A'])}")
-                if enable_ports and open_ports:
-                    port_nums = [p["port"] for p in open_ports]
-                    add_log_entry(logs, f"[{sanitized_target}] Probing {len(selected_ports)} bounded TCP ports...")
-                    add_log_entry(logs, f"[{sanitized_target}] Open ports detected: {port_nums}", "SUCCESS")
-                if enable_http and http_summary.get("reachable"):
-                    add_log_entry(logs, f"[{sanitized_target}] HTTP service responsive on port {http_summary.get('port', 80)} ({http_summary.get('scheme', 'http').upper()}) - Status: {http_summary.get('status_code')} | Title: '{http_summary.get('title')}'")
-                if enable_tls and tls_summary.get("has_tls"):
-                    add_log_entry(logs, f"[{sanitized_target}] TLS Valid: Subject='{tls_summary.get('subject_cn')}' ({tls_summary.get('days_remaining')} days remaining)")
-            else:
-                # 1. DNS Resolution Probe
-                dns_results = {}
-                primary_ip = None
-                if enable_dns:
-                    add_log_entry(logs, f"[{sanitized_target}] Querying DNS records (A, AAAA, CNAME, MX, NS, TXT, PTR)...")
+                    add_log_entry(logs, f"[{sanitized_target}] Performing reverse DNS PTR lookup...")
                     dns_results = await resolve_dns_records(sanitized_target)
-                    
-                    # Determine primary IP
-                    if dns_results.get("A"):
-                        primary_ip = dns_results["A"][0]
-                    elif dns_results.get("AAAA"):
-                        primary_ip = dns_results["AAAA"][0]
-                    elif is_ip_address(sanitized_target):
-                        primary_ip = sanitized_target
+            elif enable_dns:
+                add_log_entry(logs, f"[{sanitized_target}] Querying DNS records (A, AAAA, CNAME, MX, NS, TXT)...")
+                dns_results = await resolve_dns_records(sanitized_target)
+                if dns_results.get("A"):
+                    primary_ip = dns_results["A"][0]
+                elif dns_results.get("AAAA"):
+                    primary_ip = dns_results["AAAA"][0]
 
-                # Verify IP safety before active TCP/HTTP probing
-                target_to_probe = primary_ip or sanitized_target
-                is_safe, resolved_ip, safety_reason = resolve_and_verify_target(target_to_probe, allow_local_lab=scope.allow_local_lab)
-                if not is_safe:
-                    add_log_entry(logs, f"[{sanitized_target}] SSRF Guardrail: Probe halted. {safety_reason}", "WARN")
-                    targets_scanned += 1
-                    scan.targets_scanned = targets_scanned
-                    scan.logs = logs
-                    db.commit()
-                    continue
+            # Handle unresolvable hostnames (e.g. synthetic demo domains or offline hosts)
+            if not primary_ip and not is_target_ip:
+                is_synthetic = (
+                    sanitized_target.endswith(".internal") or
+                    sanitized_target.endswith(".local") or
+                    "demo-corp" in sanitized_target or
+                    "[DEMO" in (scope.name or "")
+                )
+                failed_targets += 1
+                asset_type = "subdomain" if sanitized_target.count(".") > 1 else "domain"
+                now = datetime.datetime.utcnow()
 
-                if not primary_ip and resolved_ip:
-                    primary_ip = resolved_ip
+                existing_asset = db.query(DiscoveredAsset).filter(
+                    DiscoveredAsset.scope_id == scope.id,
+                    DiscoveredAsset.host_or_ip == sanitized_target
+                ).first()
 
-                # 2. Bounded Port Scanning
-                open_ports = []
-                if enable_ports and target_to_probe:
-                    add_log_entry(logs, f"[{sanitized_target}] Probing {len(selected_ports)} bounded TCP ports...")
-                    open_ports = await scan_allowed_ports(
-                        host=target_to_probe,
-                        ports=selected_ports,
-                        concurrency=min(settings.MAX_CONCURRENT_PROBES, len(selected_ports)),
-                        timeout=settings.TCP_TIMEOUT_SECONDS
+                has_historical_evidence = bool(
+                    existing_asset and (
+                        existing_asset.ip_address or
+                        (existing_asset.dns_records and (existing_asset.dns_records.get("A") or existing_asset.dns_records.get("AAAA") or existing_asset.dns_records.get("PTR")))
                     )
-                    if open_ports:
-                        open_port_nums = [p["port"] for p in open_ports]
-                        add_log_entry(logs, f"[{sanitized_target}] Open ports detected: {open_port_nums}", "SUCCESS")
-                    else:
-                        add_log_entry(logs, f"[{sanitized_target}] No responsive ports found in allowlist.")
+                )
 
-                # 3. HTTP / HTTPS Reachability & Metadata
-                http_summary = {}
-                if enable_http:
+                if existing_asset and has_historical_evidence:
+                    # Target was previously verified/active, but failed current resolution.
+                    # Preserve historical evidence, mark as UNRESPONSIVE and record current resolution error.
+                    existing_asset.scan_run_id = scan_id
+                    existing_asset.status = "UNRESPONSIVE"
+                    hist_dns = dict(existing_asset.dns_records or {})
+                    if existing_asset.ip_address and not hist_dns.get("A") and existing_asset.asset_type != "ipv4":
+                        hist_dns["A"] = [existing_asset.ip_address]
+                    hist_dns["current_resolution_failed"] = True
+                    hist_dns["last_resolution_error"] = dns_results.get("error") or "Current resolution failed (NXDOMAIN / unresolvable)"
+                    hist_dns["is_synthetic_demo"] = is_synthetic or hist_dns.get("is_synthetic_demo", False)
+                    hist_dns["historical_preserved"] = True
+                    existing_asset.dns_records = hist_dns
+                    existing_asset.last_seen = now
+                    updated_assets += 1
+
+                    add_log_entry(
+                        logs,
+                        f"[{sanitized_target}] Current DNS lookup failed. Status updated to UNRESPONSIVE (historical DNS/IP observations preserved).",
+                        "INFO" if is_synthetic else "WARN"
+                    )
+                elif existing_asset:
+                    # Previously unresolvable and still unresolvable
+                    existing_asset.scan_run_id = scan_id
+                    existing_asset.asset_type = asset_type
+                    existing_asset.status = "UNRESOLVED"
+                    dns_results["is_synthetic_demo"] = is_synthetic
+                    existing_asset.dns_records = dns_results
+                    existing_asset.last_seen = now
+                    updated_assets += 1
+
+                    add_log_entry(
+                        logs,
+                        f"[{sanitized_target}] Hostname resolution failed. Recorded as UNRESOLVED asset.",
+                        "INFO" if is_synthetic else "WARN"
+                    )
+                else:
+                    # New asset with no prior resolution
+                    dns_results["is_synthetic_demo"] = is_synthetic
+                    new_asset_obj = DiscoveredAsset(
+                        scope_id=scope.id,
+                        scan_run_id=scan_id,
+                        host_or_ip=sanitized_target,
+                        asset_type=asset_type,
+                        ip_address=None,
+                        status="UNRESOLVED",
+                        open_ports=[],
+                        dns_records=dns_results,
+                        http_summary={},
+                        tls_summary={},
+                        first_seen=now,
+                        last_seen=now
+                    )
+                    db.add(new_asset_obj)
+                    new_assets += 1
+
+                    add_log_entry(
+                        logs,
+                        f"[{sanitized_target}] Hostname resolution failed. Recorded as new UNRESOLVED asset.",
+                        "INFO" if is_synthetic else "WARN"
+                    )
+
+                db.flush()
+
+                targets_scanned += 1
+                scan.targets_scanned = targets_scanned
+                scan.assets_discovered_count = new_assets
+                scan.new_assets_count = new_assets
+                scan.updated_assets_count = updated_assets
+                scan.failed_targets_count = failed_targets
+                scan.total_assets_count = db.query(DiscoveredAsset).filter(DiscoveredAsset.scope_id == scope.id).count()
+                scan.logs = logs
+                db.commit()
+                continue
+
+            # Verify IP safety before active TCP/HTTP probing
+            target_to_probe = primary_ip
+            is_safe, resolved_ip, safety_reason = resolve_and_verify_target(target_to_probe, allow_local_lab=scope.allow_local_lab)
+            if not is_safe:
+                add_log_entry(logs, f"[{sanitized_target}] SSRF Guardrail: Probe halted. {safety_reason}", "WARN")
+                targets_scanned += 1
+                failed_targets += 1
+                scan.targets_scanned = targets_scanned
+                scan.failed_targets_count = failed_targets
+                scan.logs = logs
+                db.commit()
+                continue
+
+            if not primary_ip and resolved_ip:
+                primary_ip = resolved_ip
+
+            # 2. Bounded Port Scanning
+            open_ports = []
+            if enable_ports and target_to_probe:
+                add_log_entry(logs, f"[{sanitized_target}] Probing {len(selected_ports)} bounded TCP ports...")
+                open_ports = await scan_allowed_ports(
+                    host=target_to_probe,
+                    ports=selected_ports,
+                    concurrency=min(settings.MAX_CONCURRENT_PROBES, len(selected_ports)),
+                    timeout=settings.TCP_TIMEOUT_SECONDS
+                )
+                if open_ports:
                     open_port_nums = [p["port"] for p in open_ports]
-                    
-                    # Determine which web ports to probe
-                    web_ports_to_check = []
-                    for p in [443, 8443]:
-                        if p in open_port_nums or not enable_ports:
-                            web_ports_to_check.append((p, True))
-                    for p in [80, 8080, 8000, 8888, 3000]:
-                        if p in open_port_nums or not enable_ports:
-                            web_ports_to_check.append((p, False))
+                    add_log_entry(logs, f"[{sanitized_target}] Open ports detected: {open_port_nums}", "SUCCESS")
+                else:
+                    add_log_entry(logs, f"[{sanitized_target}] No responsive ports found in allowlist.")
 
-                    # If no specific open port was detected but ports scan was disabled, test default 80/443
-                    if not web_ports_to_check and not enable_ports:
-                        web_ports_to_check = [(443, True), (80, False)]
+            # 3. HTTP / HTTPS Reachability & Metadata
+            http_summary = {}
+            if enable_http:
+                open_port_nums = [p["port"] for p in open_ports]
+                
+                # Determine which web ports to probe
+                web_ports_to_check = []
+                for p in [443, 8443]:
+                    if p in open_port_nums or not enable_ports:
+                        web_ports_to_check.append((p, True))
+                for p in [80, 8080, 8000, 8888, 3000]:
+                    if p in open_port_nums or not enable_ports:
+                        web_ports_to_check.append((p, False))
 
-                    for port, use_https in web_ports_to_check[:3]: # limit to top 3 web candidates
-                        if is_scan_cancelled(scan_id):
-                            break
-                        res = await probe_http_service(
-                            host=sanitized_target,
-                            port=port,
-                            use_https=use_https,
-                            allow_local_lab=scope.allow_local_lab,
-                            timeout=settings.HTTP_TIMEOUT_SECONDS
+                # If no specific open port was detected but ports scan was disabled, test default 80/443
+                if not web_ports_to_check and not enable_ports:
+                    web_ports_to_check = [(443, True), (80, False)]
+
+                for port, use_https in web_ports_to_check[:3]: # limit to top 3 web candidates
+                    if is_scan_cancelled(scan_id):
+                        break
+                    res = await probe_http_service(
+                        host=sanitized_target,
+                        port=port,
+                        use_https=use_https,
+                        allow_local_lab=scope.allow_local_lab,
+                        timeout=settings.HTTP_TIMEOUT_SECONDS
+                    )
+                    if res and res.get("reachable"):
+                        http_summary = res
+                        add_log_entry(
+                            logs,
+                            f"[{sanitized_target}] HTTP service responsive on port {port} ({res.get('scheme', 'http').upper()}) "
+                            f"- Status: {res.get('status_code')} | Server: {res.get('server') or 'Unknown'} | Title: '{res.get('title') or 'None'}'"
                         )
-                        if res and res.get("reachable"):
-                            http_summary = res
-                            add_log_entry(
-                                logs,
-                                f"[{sanitized_target}] HTTP service responsive on port {port} ({res.get('scheme', 'http').upper()}) "
-                                f"- Status: {res.get('status_code')} | Server: {res.get('server') or 'Unknown'} | Title: '{res.get('title') or 'None'}'"
-                            )
-                            break
+                        break
 
-                # 4. TLS Certificate Metadata
-                tls_summary = {}
-                if enable_tls:
-                    # Check port 443 or 8443 if open or by default for domains
-                    tls_ports = [p["port"] for p in open_ports if p["port"] in (443, 8443)]
-                    if not tls_ports and not is_ip_address(sanitized_target):
-                        tls_ports = [443]
+            # 4. TLS Certificate Metadata
+            tls_summary = {}
+            if enable_tls:
+                # Check port 443 or 8443 if open or by default for domains
+                tls_ports = [p["port"] for p in open_ports if p["port"] in (443, 8443)]
+                if not tls_ports and not is_ip_address(sanitized_target):
+                    tls_ports = [443]
 
-                    for tport in tls_ports[:1]:
-                        add_log_entry(logs, f"[{sanitized_target}] Inspecting TLS certificate on port {tport}...")
-                        tls_info = await inspect_tls_certificate(sanitized_target, port=tport, timeout=settings.TCP_TIMEOUT_SECONDS)
-                        if tls_info and tls_info.get("has_tls"):
-                            tls_summary = tls_info
-                            exp_str = f"Expires in {tls_info['days_remaining']} days" if tls_info.get('days_remaining') is not None else "Unknown expiry"
-                            add_log_entry(
-                                logs,
-                                f"[{sanitized_target}] TLS Valid: Subject='{tls_info.get('subject_cn')}' Issuer='{tls_info.get('issuer_cn')}' ({exp_str})"
-                            )
-                            break
+                for tport in tls_ports[:1]:
+                    add_log_entry(logs, f"[{sanitized_target}] Inspecting TLS certificate on port {tport}...")
+                    tls_info = await inspect_tls_certificate(sanitized_target, port=tport, timeout=settings.TCP_TIMEOUT_SECONDS)
+                    if tls_info and tls_info.get("has_tls"):
+                        tls_summary = tls_info
+                        exp_str = f"Expires in {tls_info['days_remaining']} days" if tls_info.get('days_remaining') is not None else "Unknown expiry"
+                        add_log_entry(
+                            logs,
+                            f"[{sanitized_target}] TLS Valid: Subject='{tls_info.get('subject_cn')}' Issuer='{tls_info.get('issuer_cn')}' ({exp_str})"
+                        )
+                        break
 
-                # 5. Asset Classification & Ingestion
-                asset_type = "domain"
-                if is_ip_address(sanitized_target):
-                    asset_type = "ipv4" if "." in sanitized_target else "ipv6"
-                elif sanitized_target.count(".") > 1:
-                    asset_type = "subdomain"
+            # 5. Asset Classification & Ingestion
+            asset_type = "domain"
+            if is_ip_address(sanitized_target):
+                asset_type = "ipv4" if "." in sanitized_target else "ipv6"
+            elif sanitized_target.count(".") > 1:
+                asset_type = "subdomain"
 
-                # Determine asset status: ACTIVE if open ports, DNS A/AAAA, or HTTP reachable
-                is_active = bool(open_ports or (dns_results.get("A") or dns_results.get("AAAA")) or http_summary.get("reachable"))
-                asset_status = "ACTIVE" if is_active else "UNRESPONSIVE"
+            # Determine asset status: ACTIVE if open ports, DNS A/AAAA, or HTTP reachable
+            is_active = bool(open_ports or (dns_results.get("A") or dns_results.get("AAAA")) or http_summary.get("reachable"))
+            asset_status = "ACTIVE" if is_active else "UNRESPONSIVE"
 
             # Upsert into DiscoveredAsset
             existing_asset = db.query(DiscoveredAsset).filter(
@@ -427,8 +379,7 @@ async def execute_discovery_run(scan_id: str):
                 existing_asset.tls_summary = tls_summary
                 existing_asset.last_seen = now
                 asset_obj = existing_asset
-                if asset_status == "ACTIVE":
-                    assets_discovered += 1
+                updated_assets += 1
             else:
                 is_new_asset = True
                 asset_obj = DiscoveredAsset(
@@ -446,19 +397,18 @@ async def execute_discovery_run(scan_id: str):
                     last_seen=now
                 )
                 db.add(asset_obj)
-                if asset_status == "ACTIVE":
-                    assets_discovered += 1
+                new_assets += 1
 
             db.flush() # ensure asset_obj has an id
 
-            # Phase 5: Trigger new asset alert policy if newly discovered
+            # Notifications: Trigger new asset alert policy if newly discovered
             if is_new_asset:
                 try:
                     evaluate_new_asset_rules(db, scope.id, asset_obj)
                 except Exception as notif_err:
-                    add_log_entry(logs, f"[Phase 5] Notification rule evaluation notice: {str(notif_err)}", "WARN")
+                    add_log_entry(logs, f"[Notifications] Notification rule evaluation notice: {str(notif_err)}", "WARN")
 
-            # 6. Phase 3: Evaluate explainable risk classification and persist deduplicated findings
+            # Evaluate explainable risk classification and persist deduplicated findings
             asset_findings = evaluate_and_persist_findings(
                 db=db,
                 scan_run_id=scan_id,
@@ -467,16 +417,20 @@ async def execute_discovery_run(scan_id: str):
             )
             findings_count += len(asset_findings)
 
-            # Phase 5: Trigger finding alert policy for newly observed findings
+            # Notifications: Trigger finding alert policy for newly observed findings
             for finding in asset_findings:
                 try:
                     evaluate_finding_rules(db, scope.id, finding)
                 except Exception as finding_notif_err:
-                    add_log_entry(logs, f"[Phase 5] Finding alert dispatch notice: {str(finding_notif_err)}", "WARN")
+                    add_log_entry(logs, f"[Notifications] Finding alert dispatch notice: {str(finding_notif_err)}", "WARN")
 
             targets_scanned += 1
             scan.targets_scanned = targets_scanned
-            scan.assets_discovered_count = assets_discovered
+            scan.assets_discovered_count = new_assets
+            scan.new_assets_count = new_assets
+            scan.updated_assets_count = updated_assets
+            scan.failed_targets_count = failed_targets
+            scan.total_assets_count = db.query(DiscoveredAsset).filter(DiscoveredAsset.scope_id == scope.id).count()
             scan.findings_count = findings_count
             scan.logs = logs
             db.commit()
@@ -485,9 +439,21 @@ async def execute_discovery_run(scan_id: str):
             await asyncio.sleep(settings.RATE_LIMIT_DELAY_SECONDS)
 
         # Mark completed
+        total_scope_assets = db.query(DiscoveredAsset).filter(DiscoveredAsset.scope_id == scope.id).count()
         scan.status = "COMPLETED"
         scan.completed_at = datetime.datetime.utcnow()
-        add_log_entry(logs, f"Discovery run finished. Targets scanned: {targets_scanned}, Assets: {assets_discovered}, Findings: {findings_count}", "SUCCESS")
+        scan.targets_scanned = targets_scanned
+        scan.assets_discovered_count = new_assets
+        scan.new_assets_count = new_assets
+        scan.updated_assets_count = updated_assets
+        scan.failed_targets_count = failed_targets
+        scan.total_assets_count = total_scope_assets
+        scan.findings_count = findings_count
+        add_log_entry(
+            logs,
+            f"Discovery run finished. Targets scanned: {targets_scanned}, New: {new_assets}, Updated: {updated_assets}, Total assets: {total_scope_assets}, Unresolved/Failed: {failed_targets}, Findings: {findings_count}",
+            "SUCCESS"
+        )
         scan.logs = logs
         db.commit()
 
@@ -500,28 +466,32 @@ async def execute_discovery_run(scan_id: str):
             details={
                 "scope_id": scope.id,
                 "targets_scanned": targets_scanned,
-                "assets_discovered": assets_discovered,
+                "assets_discovered": new_assets,
+                "new_assets_count": new_assets,
+                "updated_assets_count": updated_assets,
+                "total_assets_count": total_scope_assets,
+                "failed_targets_count": failed_targets,
                 "findings_count": findings_count
             }
         )
 
-        # Phase 2: Create immutable baseline snapshot and detect changes against previous snapshot
+        # Baseline Snapshot: Create immutable baseline snapshot and detect changes against previous snapshot
         try:
             snapshot = create_snapshot_for_scan(db, scan_id, scope.id)
             if snapshot:
                 changes = detect_and_record_changes(db, snapshot)
-                add_log_entry(logs, f"[Phase 2] Baseline snapshot created ({snapshot.asset_count} assets). Detected {len(changes)} change(s).", "SUCCESS")
+                add_log_entry(logs, f"[Baseline] Baseline snapshot created ({snapshot.asset_count} assets). Detected {len(changes)} change(s).", "SUCCESS")
                 scan.logs = logs
                 db.commit()
 
-                # Phase 5: Trigger change notification rules
+                # Notifications: Trigger change notification rules
                 for change in changes:
                     try:
                         evaluate_change_rules(db, scope.id, change)
                     except Exception as ch_notif_err:
-                        add_log_entry(logs, f"[Phase 5] Change alert dispatch notice: {str(ch_notif_err)}", "WARN")
+                        add_log_entry(logs, f"[Notifications] Change alert dispatch notice: {str(ch_notif_err)}", "WARN")
         except Exception as snap_err:
-            add_log_entry(logs, f"[Phase 2] Change detection warning: {str(snap_err)}", "WARN")
+            add_log_entry(logs, f"[Baseline] Change detection warning: {str(snap_err)}", "WARN")
             scan.logs = logs
             db.commit()
 

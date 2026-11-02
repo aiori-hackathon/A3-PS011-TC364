@@ -77,6 +77,57 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
   const tls = asset.tls_summary || {};
   const openPorts = asset.open_ports || [];
 
+  // Effective DNS resolution evidence: merges active probe records with historical finding evidence & asset IP
+  const dnsFinding = findings.find((f) => f.finding_type === 'DNS');
+  const aRecords: string[] =
+    dns.A && dns.A.length > 0
+      ? dns.A
+      : dnsFinding?.evidence?.A && Array.isArray(dnsFinding.evidence.A) && dnsFinding.evidence.A.length > 0
+      ? dnsFinding.evidence.A
+      : asset.ip_address && asset.asset_type !== 'ipv4'
+      ? [asset.ip_address]
+      : [];
+
+  const aaaaRecords: string[] =
+    dns.AAAA && dns.AAAA.length > 0
+      ? dns.AAAA
+      : dnsFinding?.evidence?.AAAA && Array.isArray(dnsFinding.evidence.AAAA) && dnsFinding.evidence.AAAA.length > 0
+      ? dnsFinding.evidence.AAAA
+      : [];
+
+  const cnameRecords: string[] =
+    dns.CNAME && dns.CNAME.length > 0
+      ? dns.CNAME
+      : dnsFinding?.evidence?.CNAME && Array.isArray(dnsFinding.evidence.CNAME) && dnsFinding.evidence.CNAME.length > 0
+      ? dnsFinding.evidence.CNAME
+      : [];
+
+  const mxRecords: string[] =
+    dns.MX && dns.MX.length > 0
+      ? dns.MX
+      : dnsFinding?.evidence?.MX && Array.isArray(dnsFinding.evidence.MX) && dnsFinding.evidence.MX.length > 0
+      ? dnsFinding.evidence.MX
+      : [];
+
+  const txtRecords: string[] =
+    dns.TXT && dns.TXT.length > 0
+      ? dns.TXT
+      : dnsFinding?.evidence?.TXT && Array.isArray(dnsFinding.evidence.TXT) && dnsFinding.evidence.TXT.length > 0
+      ? dnsFinding.evidence.TXT
+      : [];
+
+  const ptrRecords: string[] =
+    dns.PTR && dns.PTR.length > 0
+      ? dns.PTR
+      : dnsFinding?.evidence?.PTR && Array.isArray(dnsFinding.evidence.PTR) && dnsFinding.evidence.PTR.length > 0
+      ? dnsFinding.evidence.PTR
+      : [];
+
+  const isDnsHistorical =
+    Boolean(dns.current_resolution_failed) ||
+    (!dns.A?.length && aRecords.length > 0) ||
+    Boolean(dns.historical_preserved);
+
   return (
     <Drawer
       isOpen={isOpen}
@@ -84,9 +135,24 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
       title={asset.host_or_ip}
       subtitle={`Asset Type: ${asset.asset_type.toUpperCase()} • Scope ID: ${asset.scope_id.substring(0, 8)}`}
       badge={
-        <Badge variant={asset.status === 'ACTIVE' ? 'emerald' : 'amber'}>
-          {asset.status}
-        </Badge>
+        <div className="flex items-center gap-1.5">
+          {(Boolean(asset.dns_records?.is_synthetic_demo) || asset.host_or_ip.endsWith('.internal')) && (
+            <span className="text-[10px] px-2 py-0.5 rounded bg-violet-950/90 border border-violet-500/40 text-violet-300 font-mono uppercase">
+              Synthetic Demo
+            </span>
+          )}
+          <Badge
+            variant={
+              asset.status === 'ACTIVE'
+                ? 'emerald'
+                : asset.status === 'UNRESOLVED'
+                ? 'rose'
+                : 'amber'
+            }
+          >
+            {asset.status}
+          </Badge>
+        </div>
       }
     >
       {/* Tab Navigation */}
@@ -111,6 +177,19 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
         })}
       </div>
 
+      {/* Historical Evidence Notice if current resolution failed */}
+      {Boolean(asset.dns_records?.current_resolution_failed) && (
+        <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-2.5 text-xs text-amber-200">
+          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <span className="font-semibold text-amber-300">Historical Observation Notice:</span>
+            <p className="text-[11px] text-amber-200/90 leading-relaxed">
+              Target hostname could not be resolved in the latest discovery run ({asset.dns_records?.last_resolution_error || 'NXDOMAIN'}). Displayed DNS records, open ports, and HTTP/TLS metadata represent historical observations last verified on {new Date(asset.last_seen).toLocaleString()}.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Tab 1: Overview */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
@@ -119,7 +198,18 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
               <span className="text-[11px] text-slate-400 uppercase font-mono">Resolved IP Address</span>
               <div className="flex items-center justify-between mt-1">
                 <span className="text-base font-mono font-bold text-slate-100">
-                  {asset.ip_address || 'Unresolved / Direct Target'}
+                  {asset.ip_address ? (
+                    asset.dns_records?.current_resolution_failed ? (
+                      <span className="flex items-center gap-1.5">
+                        <span>{asset.ip_address}</span>
+                        <span className="text-[10px] text-amber-400 font-sans font-normal">(Historical)</span>
+                      </span>
+                    ) : (
+                      asset.ip_address
+                    )
+                  ) : (
+                    'Unresolved / Direct Target'
+                  )}
                 </span>
                 {asset.ip_address && (
                   <button
@@ -265,18 +355,42 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
       {activeTab === 'dns' && (
         <div className="space-y-4">
           <div className="p-4 rounded-xl bg-navy-850 border border-navy-750 space-y-4">
-            <h4 className="text-xs font-semibold text-slate-300 uppercase font-mono tracking-wider">
-              DNS Resolution Lookups
-            </h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-semibold text-slate-300 uppercase font-mono tracking-wider">
+                DNS Resolution Lookups
+              </h4>
+              {isDnsHistorical && (
+                <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono">
+                  Historical Records Preserved
+                </span>
+              )}
+            </div>
+
+            {isDnsHistorical && (
+              <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300/90 leading-relaxed">
+                Latest live DNS lookup failed ({dns.last_resolution_error || 'unresolvable'}). The DNS records below represent verified historical observations.
+              </div>
+            )}
+
+            {Boolean(dns.error && !isDnsHistorical && aRecords.length === 0) && (
+              <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300/90 leading-relaxed">
+                DNS lookup status: {dns.error}
+              </div>
+            )}
 
             {/* A Records */}
             <div className="space-y-1">
               <span className="text-xs font-mono font-bold text-cyan-400">A Records (IPv4):</span>
-              {dns.A && dns.A.length > 0 ? (
+              {aRecords && aRecords.length > 0 ? (
                 <div className="space-y-1">
-                  {dns.A.map((ip) => (
+                  {aRecords.map((ip) => (
                     <div key={ip} className="font-mono text-xs p-2 rounded bg-navy-900 border border-navy-750 text-slate-200 flex justify-between items-center">
-                      <span>{ip}</span>
+                      <span className="flex items-center gap-2">
+                        <span>{ip}</span>
+                        {isDnsHistorical && (
+                          <span className="text-[10px] text-amber-400 font-sans">(Historical)</span>
+                        )}
+                      </span>
                       <button onClick={() => copyToClipboard(ip, `a-${ip}`)} className="text-slate-500 hover:text-slate-300">
                         {copiedField === `a-${ip}` ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
@@ -291,9 +405,9 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
             {/* AAAA Records */}
             <div className="space-y-1">
               <span className="text-xs font-mono font-bold text-violet-400">AAAA Records (IPv6):</span>
-              {dns.AAAA && dns.AAAA.length > 0 ? (
+              {aaaaRecords && aaaaRecords.length > 0 ? (
                 <div className="space-y-1">
-                  {dns.AAAA.map((ip6) => (
+                  {aaaaRecords.map((ip6) => (
                     <div key={ip6} className="font-mono text-xs p-2 rounded bg-navy-900 border border-navy-750 text-slate-200">
                       {ip6}
                     </div>
@@ -307,9 +421,9 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
             {/* CNAME */}
             <div className="space-y-1">
               <span className="text-xs font-mono font-bold text-amber-400">CNAME Records:</span>
-              {dns.CNAME && dns.CNAME.length > 0 ? (
+              {cnameRecords && cnameRecords.length > 0 ? (
                 <div className="space-y-1">
-                  {dns.CNAME.map((c) => (
+                  {cnameRecords.map((c) => (
                     <div key={c} className="font-mono text-xs p-2 rounded bg-navy-900 border border-navy-750 text-slate-200">
                       {c}
                     </div>
@@ -323,9 +437,9 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
             {/* MX Records */}
             <div className="space-y-1">
               <span className="text-xs font-mono font-bold text-emerald-400">MX Mail Exchangers:</span>
-              {dns.MX && dns.MX.length > 0 ? (
+              {mxRecords && mxRecords.length > 0 ? (
                 <div className="space-y-1">
-                  {dns.MX.map((mx) => (
+                  {mxRecords.map((mx) => (
                     <div key={mx} className="font-mono text-xs p-2 rounded bg-navy-900 border border-navy-750 text-slate-200">
                       {mx}
                     </div>
@@ -339,9 +453,9 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
             {/* TXT Records */}
             <div className="space-y-1">
               <span className="text-xs font-mono font-bold text-slate-400">TXT Records:</span>
-              {dns.TXT && dns.TXT.length > 0 ? (
+              {txtRecords && txtRecords.length > 0 ? (
                 <div className="space-y-1">
-                  {dns.TXT.map((txt, idx) => (
+                  {txtRecords.map((txt, idx) => (
                     <div key={idx} className="font-mono text-xs p-2 rounded bg-navy-900 border border-navy-750 text-slate-300 break-all">
                       {txt}
                     </div>
@@ -353,11 +467,11 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
             </div>
 
             {/* PTR Reverse Lookup */}
-            {dns.PTR && dns.PTR.length > 0 && (
+            {ptrRecords && ptrRecords.length > 0 && (
               <div className="space-y-1">
                 <span className="text-xs font-mono font-bold text-cyan-300">PTR Reverse Name:</span>
                 <div className="space-y-1">
-                  {dns.PTR.map((ptr) => (
+                  {ptrRecords.map((ptr) => (
                     <div key={ptr} className="font-mono text-xs p-2 rounded bg-navy-900 border border-navy-750 text-slate-200">
                       {ptr}
                     </div>
@@ -620,6 +734,11 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
 
                   <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono pt-1 border-t border-navy-800">
                     <span>First Seen: {f.first_detected ? new Date(f.first_detected).toLocaleDateString() : 'Initial'}</span>
+                    {asset?.scan_run_id && f.scan_run_id !== asset.scan_run_id && (
+                      <span className="text-amber-400 font-mono text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
+                        Historical Observation
+                      </span>
+                    )}
                     <span>Last Observed: {f.last_observed ? new Date(f.last_observed).toLocaleString() : new Date(f.created_at).toLocaleString()}</span>
                   </div>
                 </div>
@@ -634,7 +753,7 @@ export const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase tracking-wider font-mono text-slate-400">
-              Phase 2 Detected Baseline Changes
+              Detected Baseline Changes
             </span>
             <span className="text-xs font-mono text-cyan-400">
               {assetChanges.length} record(s)

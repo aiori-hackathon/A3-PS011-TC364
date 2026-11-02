@@ -140,6 +140,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
               <option value="all">All Statuses</option>
               <option value="ACTIVE">ACTIVE</option>
               <option value="UNRESPONSIVE">UNRESPONSIVE</option>
+              <option value="UNRESOLVED">UNRESOLVED</option>
             </select>
 
             {/* Asset Type Filter */}
@@ -214,7 +215,7 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
             {sortedAssets.length !== assets.length && ' (filtered)'}
           </span>
           <span className="font-mono text-[11px] text-slate-500">
-            Phase 4 Advanced Inventory Explorer
+            Advanced Asset Inventory Explorer
           </span>
         </div>
       </Card>
@@ -267,6 +268,11 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                           <span className="text-[10px] px-1.5 py-0.2 rounded bg-navy-900 border border-navy-700 text-slate-400 font-mono">
                             {asset.asset_type}
                           </span>
+                          {(Boolean(asset.dns_records?.is_synthetic_demo) || asset.host_or_ip.endsWith('.internal')) && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-950/80 border border-violet-500/40 text-violet-300 font-mono uppercase tracking-wider">
+                              Synthetic Demo
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -280,7 +286,13 @@ export const InventoryView: React.FC<InventoryViewProps> = ({
                       {/* Status */}
                       <td className="py-3.5 px-4">
                         <Badge
-                          variant={asset.status === 'ACTIVE' ? 'emerald' : 'amber'}
+                          variant={
+                            asset.status === 'ACTIVE'
+                              ? 'emerald'
+                              : asset.status === 'UNRESOLVED'
+                              ? 'rose'
+                              : 'amber'
+                          }
                           size="sm"
                         >
                           {asset.status}

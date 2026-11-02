@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 def test_analytics_metrics_and_timelines(client: TestClient):
-    # Test overview returns all Phase 4 analytics fields
+    # Test overview returns all analytics fields
     resp = client.get("/api/stats/overview")
     assert resp.status_code == 200
     data = resp.json()

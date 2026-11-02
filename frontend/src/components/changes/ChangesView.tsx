@@ -448,7 +448,7 @@ export const ChangesView: React.FC<ChangesViewProps> = ({ scopes, onInspectAsset
                 {sortedChanges.length !== changes.length && ' (filtered)'}
               </span>
               <span className="font-mono text-[11px] text-slate-500">
-                Phase 4 Baseline Delta Explorer
+                Baseline Delta Explorer
               </span>
             </div>
           </Card>

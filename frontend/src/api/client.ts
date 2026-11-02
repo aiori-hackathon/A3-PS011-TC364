@@ -21,8 +21,12 @@ import type {
   ScheduleUpdatePayload,
 } from './types';
 
-const rawBase = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/api\/?$/, '').replace(/\/$/, '') || '';
-const API_BASE = rawBase ? `${rawBase}/api` : '/api';
+const rawApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+const API_BASE = rawApiUrl
+  ? rawApiUrl.endsWith('/api')
+    ? rawApiUrl.replace(/\/+$/, '')
+    : `${rawApiUrl.replace(/\/+$/, '')}/api`
+  : '/api';
 
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
@@ -39,7 +43,10 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     try {
       const errJson = await response.json();
       if (errJson && errJson.detail) {
-        errorDetail = typeof errJson.detail === 'string' ? errJson.detail : JSON.stringify(errJson.detail);
+        errorDetail =
+          typeof errJson.detail === 'string'
+            ? errJson.detail
+            : JSON.stringify(errJson.detail);
       }
     } catch {
       // ignore
@@ -56,7 +63,8 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   // Health
-  getHealth: () => request<{ status: string; service: string; phase: string }>('/health'),
+  getHealth: () =>
+    request<{ status: string; service: string; phase: string }>('/health'),
 
   // Scopes
   getScopes: () => request<Scope[]>('/scopes'),
@@ -78,7 +86,9 @@ export const api = {
 
   // Scans
   getScans: (scopeId?: string) =>
-    request<ScanRun[]>(scopeId ? `/scans?scope_id=${encodeURIComponent(scopeId)}` : '/scans'),
+    request<ScanRun[]>(
+      scopeId ? `/scans?scope_id=${encodeURIComponent(scopeId)}` : '/scans',
+    ),
   getScan: (id: string) => request<ScanRun>(`/scans/${id}`),
   launchScan: (scopeId: string, config?: ScanConfig) =>
     request<ScanRun>('/scans', {
@@ -89,7 +99,8 @@ export const api = {
     request<{ message: string; scan_id: string }>(`/scans/${id}/cancel`, {
       method: 'POST',
     }),
-  getScanFindings: (id: string) => request<ScanFinding[]>(`/scans/${id}/findings`),
+  getScanFindings: (id: string) =>
+    request<ScanFinding[]>(`/scans/${id}/findings`),
 
   // Assets
   getAssets: (params?: {
@@ -102,21 +113,24 @@ export const api = {
     const searchParams = new URLSearchParams();
     if (params?.scope_id) searchParams.append('scope_id', params.scope_id);
     if (params?.status) searchParams.append('status', params.status);
-    if (params?.asset_type) searchParams.append('asset_type', params.asset_type);
+    if (params?.asset_type)
+      searchParams.append('asset_type', params.asset_type);
     if (params?.search) searchParams.append('search', params.search);
     if (params?.port) searchParams.append('port', params.port.toString());
     const query = searchParams.toString();
     return request<DiscoveredAsset[]>(query ? `/assets?${query}` : '/assets');
   },
   getAsset: (id: string) => request<DiscoveredAsset>(`/assets/${id}`),
-  getAssetFindings: (id: string) => request<ScanFinding[]>(`/assets/${id}/findings`),
-  getAssetChanges: (id: string) => request<AssetChangeRecord[]>(`/assets/${id}/changes`),
+  getAssetFindings: (id: string) =>
+    request<ScanFinding[]>(`/assets/${id}/findings`),
+  getAssetChanges: (id: string) =>
+    request<AssetChangeRecord[]>(`/assets/${id}/changes`),
   deleteAsset: (id: string) =>
     request<void>(`/assets/${id}`, {
       method: 'DELETE',
     }),
 
-  // Phase 2: Changes & Snapshots
+  // Changes & Snapshots
   getChanges: (params?: {
     scope_id?: string;
     change_type?: string;
@@ -127,20 +141,28 @@ export const api = {
   }) => {
     const searchParams = new URLSearchParams();
     if (params?.scope_id) searchParams.append('scope_id', params.scope_id);
-    if (params?.change_type) searchParams.append('change_type', params.change_type);
+    if (params?.change_type)
+      searchParams.append('change_type', params.change_type);
     if (params?.asset) searchParams.append('asset', params.asset);
-    if (params?.is_inconclusive !== undefined) searchParams.append('is_inconclusive', params.is_inconclusive.toString());
+    if (params?.is_inconclusive !== undefined)
+      searchParams.append('is_inconclusive', params.is_inconclusive.toString());
     if (params?.limit) searchParams.append('limit', params.limit.toString());
     if (params?.offset) searchParams.append('offset', params.offset.toString());
     const query = searchParams.toString();
-    return request<AssetChangeRecord[]>(query ? `/changes?${query}` : '/changes');
+    return request<AssetChangeRecord[]>(
+      query ? `/changes?${query}` : '/changes',
+    );
   },
   getChange: (id: string) => request<AssetChangeRecord>(`/changes/${id}`),
   getSnapshots: (scopeId?: string) =>
-    request<AssetSnapshot[]>(scopeId ? `/snapshots?scope_id=${encodeURIComponent(scopeId)}` : '/snapshots'),
+    request<AssetSnapshot[]>(
+      scopeId
+        ? `/snapshots?scope_id=${encodeURIComponent(scopeId)}`
+        : '/snapshots',
+    ),
   getSnapshot: (id: string) => request<AssetSnapshot>(`/snapshots/${id}`),
 
-  // Phase 3: Findings & Risk Classification
+  // Findings & Risk Classification
   getFindings: (params?: {
     scope_id?: string;
     asset_id?: string;
@@ -155,8 +177,10 @@ export const api = {
     if (params?.scope_id) searchParams.append('scope_id', params.scope_id);
     if (params?.asset_id) searchParams.append('asset_id', params.asset_id);
     if (params?.severity) searchParams.append('severity', params.severity);
-    if (params?.review_status) searchParams.append('review_status', params.review_status);
-    if (params?.finding_type) searchParams.append('finding_type', params.finding_type);
+    if (params?.review_status)
+      searchParams.append('review_status', params.review_status);
+    if (params?.finding_type)
+      searchParams.append('finding_type', params.finding_type);
     if (params?.search) searchParams.append('search', params.search);
     if (params?.limit) searchParams.append('limit', params.limit.toString());
     if (params?.offset) searchParams.append('offset', params.offset.toString());
@@ -171,36 +195,53 @@ export const api = {
     }),
   getFindingsCounts: (scopeId?: string) =>
     request<FindingsCountSummary>(
-      scopeId ? `/findings/summary/counts?scope_id=${encodeURIComponent(scopeId)}` : '/findings/summary/counts'
+      scopeId
+        ? `/findings/summary/counts?scope_id=${encodeURIComponent(scopeId)}`
+        : '/findings/summary/counts',
     ),
 
   // Stats & Demo
   getStatsOverview: () => request<StatsOverview>('/stats/overview'),
   seedDemoMode: () =>
-    request<{ message: string; scope_id: string; assets_count: number }>('/demo/seed', {
-      method: 'POST',
-    }),
+    request<{ message: string; scope_id: string; assets_count: number }>(
+      '/demo/seed',
+      {
+        method: 'POST',
+      },
+    ),
   clearDemoMode: () =>
     request<{ message: string }>('/demo/clear', {
       method: 'POST',
     }),
 
-  // Phase 5: Notifications & Alerts
-  getIntegrationStatus: () => request<IntegrationStatus>('/notifications/integrations/status'),
-  getNotificationRules: (params?: { scope_id?: string; event_type?: string; enabled_only?: boolean }) => {
+  // Notifications & Alerts
+  getIntegrationStatus: () =>
+    request<IntegrationStatus>('/notifications/integrations/status'),
+  getNotificationRules: (params?: {
+    scope_id?: string;
+    event_type?: string;
+    enabled_only?: boolean;
+  }) => {
     const searchParams = new URLSearchParams();
     if (params?.scope_id) searchParams.append('scope_id', params.scope_id);
-    if (params?.event_type) searchParams.append('event_type', params.event_type);
-    if (params?.enabled_only !== undefined) searchParams.append('enabled_only', params.enabled_only.toString());
+    if (params?.event_type)
+      searchParams.append('event_type', params.event_type);
+    if (params?.enabled_only !== undefined)
+      searchParams.append('enabled_only', params.enabled_only.toString());
     const query = searchParams.toString();
-    return request<NotificationRule[]>(query ? `/notifications/rules?${query}` : '/notifications/rules');
+    return request<NotificationRule[]>(
+      query ? `/notifications/rules?${query}` : '/notifications/rules',
+    );
   },
   createNotificationRule: (payload: NotificationRuleCreatePayload) =>
     request<NotificationRule>('/notifications/rules', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  updateNotificationRule: (id: string, payload: Partial<NotificationRuleCreatePayload>) =>
+  updateNotificationRule: (
+    id: string,
+    payload: Partial<NotificationRuleCreatePayload>,
+  ) =>
     request<NotificationRule>(`/notifications/rules/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
@@ -209,25 +250,43 @@ export const api = {
     request<{ message: string }>(`/notifications/rules/${id}`, {
       method: 'DELETE',
     }),
-  getNotificationHistory: (params?: { status?: string; event_type?: string; channel?: string; limit?: number }) => {
+  getNotificationHistory: (params?: {
+    status?: string;
+    event_type?: string;
+    channel?: string;
+    limit?: number;
+  }) => {
     const searchParams = new URLSearchParams();
     if (params?.status) searchParams.append('status', params.status);
-    if (params?.event_type) searchParams.append('event_type', params.event_type);
+    if (params?.event_type)
+      searchParams.append('event_type', params.event_type);
     if (params?.channel) searchParams.append('channel', params.channel);
     if (params?.limit) searchParams.append('limit', params.limit.toString());
     const query = searchParams.toString();
-    return request<NotificationEvent[]>(query ? `/notifications/history?${query}` : '/notifications/history');
+    return request<NotificationEvent[]>(
+      query ? `/notifications/history?${query}` : '/notifications/history',
+    );
   },
   retryNotificationEvent: (id: string) =>
-    request<{ message: string; event: NotificationEvent }>(`/notifications/history/${id}/retry`, {
-      method: 'POST',
-    }),
+    request<{ message: string; event: NotificationEvent }>(
+      `/notifications/history/${id}/retry`,
+      {
+        method: 'POST',
+      },
+    ),
 
-  // Phase 5: Audit Trail
-  getAuditLogs: (params?: { action?: string; entity_type?: string; search?: string; limit?: number; offset?: number }) => {
+  // Audit Trail
+  getAuditLogs: (params?: {
+    action?: string;
+    entity_type?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
     const searchParams = new URLSearchParams();
     if (params?.action) searchParams.append('action', params.action);
-    if (params?.entity_type) searchParams.append('entity_type', params.entity_type);
+    if (params?.entity_type)
+      searchParams.append('entity_type', params.entity_type);
     if (params?.search) searchParams.append('search', params.search);
     if (params?.limit) searchParams.append('limit', params.limit.toString());
     if (params?.offset) searchParams.append('offset', params.offset.toString());
@@ -236,8 +295,12 @@ export const api = {
   },
   getAuditSummary: () => request<AuditSummary>('/audit/summary'),
 
-  // Phase 5: Reports & Data Exports
-  getExportUrl: (resource: 'inventory' | 'changes' | 'findings', format: 'csv' | 'json', params?: Record<string, string>) => {
+  // Reports & Data Exports
+  getExportUrl: (
+    resource: 'inventory' | 'changes' | 'findings',
+    format: 'csv' | 'json',
+    params?: Record<string, string>,
+  ) => {
     const searchParams = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
@@ -248,12 +311,14 @@ export const api = {
     return `${API_BASE}/exports/${resource}/${format}${query ? `?${query}` : ''}`;
   },
 
-  // Phase 6: Automated & Scheduled Discovery
+  // Automated & Scheduled Discovery
   getSchedules: (params?: { scope_id?: string }) => {
     const searchParams = new URLSearchParams();
     if (params?.scope_id) searchParams.append('scope_id', params.scope_id);
     const query = searchParams.toString();
-    return request<DiscoverySchedule[]>(query ? `/schedules?${query}` : '/schedules');
+    return request<DiscoverySchedule[]>(
+      query ? `/schedules?${query}` : '/schedules',
+    );
   },
   getSchedule: (id: string) => request<DiscoverySchedule>(`/schedules/${id}`),
   createSchedule: (payload: ScheduleCreatePayload) =>

@@ -150,24 +150,45 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
           </div>
 
           {/* Metrics Counters */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div className="p-3 rounded-xl bg-navy-900 border border-navy-750 text-center">
-              <span className="text-[10px] text-slate-400 uppercase font-mono">Targets Scanned</span>
-              <div className="text-xl font-bold font-mono text-slate-100 mt-1">
-                {displayedScan.targets_scanned}
+              <span className="text-[10px] text-slate-400 uppercase font-mono">Targets Processed</span>
+              <div className="text-lg font-bold font-mono text-slate-100 mt-1">
+                {displayedScan.targets_scanned} / {displayedScan.targets_total}
               </div>
             </div>
 
             <div className="p-3 rounded-xl bg-navy-900 border border-navy-750 text-center">
-              <span className="text-[10px] text-slate-400 uppercase font-mono">Assets Discovered</span>
-              <div className="text-xl font-bold font-mono text-cyan-400 mt-1">
-                {displayedScan.assets_discovered_count}
+              <span className="text-[10px] text-slate-400 uppercase font-mono">New Discovered</span>
+              <div className="text-lg font-bold font-mono text-cyan-400 mt-1">
+                {displayedScan.new_assets_count ?? displayedScan.assets_discovered_count}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-navy-900 border border-navy-750 text-center">
+              <span className="text-[10px] text-slate-400 uppercase font-mono">Assets Updated</span>
+              <div className="text-lg font-bold font-mono text-emerald-400 mt-1">
+                {displayedScan.updated_assets_count ?? 0}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-navy-900 border border-navy-750 text-center">
+              <span className="text-[10px] text-slate-400 uppercase font-mono">Total Assets</span>
+              <div className="text-lg font-bold font-mono text-slate-200 mt-1">
+                {displayedScan.total_assets_count ?? displayedScan.assets_discovered_count}
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-navy-900 border border-navy-750 text-center">
+              <span className="text-[10px] text-slate-400 uppercase font-mono">Unresolved / Failed</span>
+              <div className="text-lg font-bold font-mono text-amber-400 mt-1">
+                {displayedScan.failed_targets_count ?? 0}
               </div>
             </div>
 
             <div className="p-3 rounded-xl bg-navy-900 border border-navy-750 text-center">
               <span className="text-[10px] text-slate-400 uppercase font-mono">Findings Recorded</span>
-              <div className="text-xl font-bold font-mono text-violet-400 mt-1">
+              <div className="text-lg font-bold font-mono text-violet-400 mt-1">
                 {displayedScan.findings_count}
               </div>
             </div>
@@ -253,7 +274,7 @@ export const DiscoveryView: React.FC<DiscoveryViewProps> = ({
             <Clock className="w-4 h-4 text-cyan-400" />
             Discovery Run History ({scans.length})
           </h3>
-          <span className="text-xs text-slate-500 font-mono">Phase 1 Audit Logs</span>
+          <span className="text-xs text-slate-500 font-mono">Audit Trail Verified</span>
         </div>
 
         {scans.length === 0 ? (

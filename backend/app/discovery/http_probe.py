@@ -25,7 +25,7 @@ async def probe_http_service(
         url = f"{scheme}://{host}:{port}"
 
     headers = {
-        "User-Agent": "ArgusTrace-AssetDiscovery-Scanner/1.0 (+https://argustrace.local/bot; Security Discovery Phase 1)",
+        "User-Agent": "ArgusTrace-AssetDiscovery-Scanner/1.0 (+https://argustrace.local/bot; Security Discovery)",
         "Accept": "*/*"
     }
 

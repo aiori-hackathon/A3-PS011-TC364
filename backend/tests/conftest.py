@@ -20,8 +20,13 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_
 def setup_database(monkeypatch):
     monkeypatch.setattr(app_db, "engine", test_engine)
     monkeypatch.setattr(app_db, "SessionLocal", TestingSessionLocal)
+    import app.discovery.engine as discovery_engine
+    monkeypatch.setattr(discovery_engine, "database", app_db)
+    import app.main as app_main
+    monkeypatch.setattr(app_main, "SessionLocal", TestingSessionLocal)
 
     Base.metadata.create_all(bind=test_engine)
+    app_db.init_db(test_engine)
     
     def override_get_db():
         db = TestingSessionLocal()

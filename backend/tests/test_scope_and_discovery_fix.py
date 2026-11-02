@@ -111,13 +111,21 @@ def test_scan_launch_never_fails_with_scope_does_not_exist(client, db):
     db.query(Scope).delete()
     db.commit()
 
-    # Pass an arbitrary nonexistent UUID
+    # Pass an arbitrary nonexistent UUID -> must return 404
     res = client.post("/api/scans", json={
         "scope_id": "nonexistent-uuid-12345",
         "config": {"ports": [80, 443]}
     })
-    assert res.status_code == 201
-    data = res.json()
+    assert res.status_code == 404
+    assert "does not exist" in res.json()["detail"].lower()
+
+    # Canonical demo scope ID cleanly bootstraps when database was empty
+    demo_res = client.post("/api/scans", json={
+        "scope_id": CANONICAL_DEMO_SCOPE_ID,
+        "config": {"ports": [80, 443]}
+    })
+    assert demo_res.status_code == 201
+    data = demo_res.json()
     assert data["scope_id"] == CANONICAL_DEMO_SCOPE_ID
     assert data["targets_total"] == 5
 

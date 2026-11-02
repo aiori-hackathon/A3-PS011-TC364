@@ -69,7 +69,7 @@ export const SecurityAnalytics: React.FC<SecurityAnalyticsProps> = ({
             <h3 className="text-sm font-bold text-slate-100 flex items-center gap-2">
               Security Analytics & Attack Surface Telemetry
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                Phase 4 Real Data
+                Live Data
               </span>
             </h3>
             <p className="text-xs text-slate-400">
@@ -453,7 +453,7 @@ export const SecurityAnalytics: React.FC<SecurityAnalyticsProps> = ({
                 </div>
 
                 <div className="pt-2 border-t border-navy-750 flex items-center justify-between text-xs text-slate-500">
-                  <span>Phase 2 Diffs & Snapshots</span>
+                  <span>Baseline Diffs & Snapshots</span>
                   <Button variant="ghost" size="sm" onClick={() => onNavigateTab('changes')} className="text-xs">
                     View Change Log <ArrowRight className="w-3 h-3 ml-1" />
                   </Button>

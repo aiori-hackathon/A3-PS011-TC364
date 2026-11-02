@@ -9,6 +9,7 @@ CANONICAL_DEMO_SCOPE_NAME = "[DEMO / SYNTHETIC] Local Lab & Authorised Sample"
 def get_default_db_url() -> str:
     env_db = os.environ.get("DATABASE_URL")
     if env_db:
+        # Normalize legacy postgres:// scheme to postgresql:// for SQLAlchemy 2.0 compatibility
         # Normalize legacy postgres:// to postgresql:// for SQLAlchemy 2.0 compatibility
         if env_db.startswith("postgres://"):
             env_db = env_db.replace("postgres://", "postgresql://", 1)
@@ -23,7 +24,7 @@ def get_default_db_url() -> str:
     return f"sqlite:///{db_path}"
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "ArgusTrace - Attack Surface Asset Discovery (PS-011)"
+    PROJECT_NAME: str = "ArgusTrace - Attack Surface Asset Discovery & Risk Intelligence (PS-011)"
     API_V1_STR: str = "/api"
     DATABASE_URL: str = get_default_db_url()
     
@@ -46,7 +47,7 @@ class Settings(BaseSettings):
     # SSRF / Local Lab Safety
     ALLOW_LOCAL_LAB_DEFAULT: bool = False
 
-    # Phase 5: Notifications & Integration Configuration (from env only)
+    # Notifications & Integration Configuration (from env only)
     ENABLE_LIVE_NOTIFICATIONS: bool = False
     WEBHOOK_TIMEOUT_SECONDS: float = 5.0
     MAX_NOTIFICATION_RETRIES: int = 3

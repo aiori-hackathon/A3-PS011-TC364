@@ -3,9 +3,11 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from .config import settings
 
 # For SQLite, check_same_thread=False is needed for multi-threaded access in FastAPI
+# pool_pre_ping=True protects against stale connection drops on hosted PostgreSQL / external DBs
 engine = create_engine(
     settings.DATABASE_URL,
     connect_args={"check_same_thread": False, "timeout": 30} if settings.DATABASE_URL.startswith("sqlite") else {},
+    pool_pre_ping=True,
     echo=False
 )
 
@@ -53,12 +55,29 @@ def init_db(target_engine=None):
             cols_to_add = [
                 ("schedule_id", "VARCHAR(36)"),
                 ("is_scheduled", "BOOLEAN DEFAULT 0"),
+                ("new_assets_count", "INTEGER DEFAULT 0"),
+                ("updated_assets_count", "INTEGER DEFAULT 0"),
+                ("failed_targets_count", "INTEGER DEFAULT 0"),
+                ("total_assets_count", "INTEGER DEFAULT 0"),
             ]
             with use_engine.begin() as conn:
                 for col_name, col_def in cols_to_add:
                     if col_name not in existing_cols:
                         conn.execute(text(f"ALTER TABLE scan_runs ADD COLUMN {col_name} {col_def}"))
+
+        # Non-destructive recovery of historical DNS A records for assets with known IP addresses
+        if "discovered_assets" in inspector.get_table_names():
+            from .models import DiscoveredAsset
+            from sqlalchemy.orm import Session
+            with Session(use_engine) as session:
+                assets = session.query(DiscoveredAsset).all()
+                for a in assets:
+                    if a.ip_address and a.asset_type != "ipv4":
+                        dns = dict(a.dns_records or {})
+                        if not dns.get("A"):
+                            dns["A"] = [a.ip_address]
+                            a.dns_records = dns
+                session.commit()
     except Exception as e:
         import logging
         logging.getLogger("argustrace").warning(f"Database migration note: {e}")
-

@@ -79,16 +79,21 @@ async def resolve_dns_records(target: str) -> Dict[str, Any]:
 
     # Fallback for A records using getaddrinfo if dnspython gave empty A records
     if not results["A"] and not results["AAAA"]:
-        try:
-            addr_info = await asyncio.to_thread(socket.getaddrinfo, target, None)
-            for item in addr_info:
-                family = item[0]
-                ip_addr = item[4][0]
-                if family == socket.AF_INET and ip_addr not in results["A"]:
-                    results["A"].append(ip_addr)
-                elif family == socket.AF_INET6 and ip_addr not in results["AAAA"]:
-                    results["AAAA"].append(ip_addr)
-        except Exception as e:
-            results["error"] = str(e)
+        is_synthetic = target.endswith(".internal") or target.endswith(".local") or "demo-corp" in target
+        if is_synthetic:
+            results["is_synthetic_demo"] = True
+            results["error"] = f"Unresolved synthetic demo hostname ({target})"
+        else:
+            try:
+                addr_info = await asyncio.to_thread(socket.getaddrinfo, target, None)
+                for item in addr_info:
+                    family = item[0]
+                    ip_addr = item[4][0]
+                    if family == socket.AF_INET and ip_addr not in results["A"]:
+                        results["A"].append(ip_addr)
+                    elif family == socket.AF_INET6 and ip_addr not in results["AAAA"]:
+                        results["AAAA"].append(ip_addr)
+            except Exception as e:
+                results["error"] = str(e)
 
     return results

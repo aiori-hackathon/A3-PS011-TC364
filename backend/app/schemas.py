@@ -68,6 +68,10 @@ class ScanOut(BaseModel):
     targets_total: int
     targets_scanned: int
     assets_discovered_count: int
+    new_assets_count: int = 0
+    updated_assets_count: int = 0
+    failed_targets_count: int = 0
+    total_assets_count: int = 0
     findings_count: int
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
@@ -129,6 +133,7 @@ class StatsOverview(BaseModel):
     total_assets: int
     active_assets: int
     unresponsive_assets: int
+    unresolved_assets: int = 0
     total_scans: int
     last_scan: Optional[ScanOut] = None
     asset_types_distribution: Dict[str, int]
@@ -141,7 +146,7 @@ class StatsOverview(BaseModel):
     discovery_timeline: List[Dict[str, Any]] = []
     changes_timeline: List[Dict[str, Any]] = []
 
-# Phase 2 Snapshot & Change Schemas
+# Snapshot & Change Schemas
 class SnapshotOut(BaseModel):
     id: str
     scope_id: str
@@ -169,7 +174,7 @@ class ChangeRecordOut(BaseModel):
 
     model_config = {"from_attributes": True}
 
-# Phase 5: Notifications, Reports & Audit Trail Schemas
+# Notifications, Reports & Audit Trail Schemas
 
 class NotificationRuleCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=120)
@@ -250,7 +255,7 @@ class IntegrationStatusOut(BaseModel):
     email_integration: Dict[str, Any]
     webhook_integration: Dict[str, Any]
 
-# --- Phase 6: Automated & Scheduled Discovery Schemas ---
+# --- Automated & Scheduled Discovery Schemas ---
 
 class ScheduleCreate(BaseModel):
     scope_id: str
